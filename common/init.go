@@ -138,7 +138,7 @@ func initConstantEnv() {
 	ErrorResponseReplaceEnabled = GetEnvOrDefaultBool("ERROR_RESPONSE_REPLACE_ENABLED", false)
 
 	// Parse JSON mapping from environment variable
-	mappingStr := GetEnvOrDefaultString("ERROR_RESPONSE_MAPPING", `{\"no candidates returned\":\"The current model is busy, please try again later\",\"empty response\":\"Model returned empty content, please check your input\",\"PROHIBITED_CONTENT\":\"Content violates usage policy, please modify and retry\"}`)
+	mappingStr := GetEnvOrDefaultString("ERROR_RESPONSE_MAPPING", `{"no candidates returned":"The current model is busy, please try again later","empty response":"Model returned empty content, please check your input","PROHIBITED_CONTENT":"Content violates usage policy, please modify and retry"}`)
 	if mappingStr != "" {
 		ErrorResponseMapping = parseErrorMapping(mappingStr)
 	}
