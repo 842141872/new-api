@@ -46,6 +46,10 @@ export function isRoot() {
   return user.role >= 100;
 }
 
+export function getDefaultPageSize() {
+  return isAdmin() ? 100 : 10;
+}
+
 export function getSystemName() {
   let system_name = localStorage.getItem('system_name');
   if (!system_name) return 'New API';
@@ -728,7 +732,7 @@ export const createCardProPagination = ({
   onPageChange,
   onPageSizeChange,
   isMobile = false,
-  pageSizeOpts = [10, 20, 50, 100],
+  pageSizeOpts = [10, 20, 50, 100, 200, 500, 1000],
   showSizeChanger = true,
   t = (key) => key,
 }) => {

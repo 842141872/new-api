@@ -57,6 +57,11 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 
 	adminInfo := make(map[string]interface{})
 	adminInfo["use_channel"] = ctx.GetStringSlice("use_channel")
+	// 添加渠道名称信息
+	useChannelNames := ctx.GetStringSlice("use_channel_names")
+	if len(useChannelNames) > 0 {
+		adminInfo["use_channel_names"] = useChannelNames
+	}
 	isMultiKey := common.GetContextKeyBool(ctx, constant.ContextKeyChannelIsMultiKey)
 	if isMultiKey {
 		adminInfo["is_multi_key"] = true

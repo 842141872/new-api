@@ -44,6 +44,7 @@ import PricingCardSkeleton from './PricingCardSkeleton';
 import { useMinimumLoadingTime } from '../../../../../hooks/common/useMinimumLoadingTime';
 import { renderLimitedItems } from '../../../../common/ui/RenderUtils';
 import { useIsMobile } from '../../../../../hooks/common/useIsMobile';
+import { PAGE_SIZE_OPTIONS } from '../../../../../constants/common.constant';
 
 const CARD_STYLES = {
   container:
@@ -364,7 +365,7 @@ const PricingCardView = ({
             pageSize={pageSize}
             total={filteredModels.length}
             showSizeChanger={true}
-            pageSizeOptions={[10, 20, 50, 100]}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
             size={isMobile ? 'small' : 'default'}
             showQuickJumper={isMobile}
             onPageChange={(page) => setCurrentPage(page)}

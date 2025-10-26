@@ -78,7 +78,7 @@ const LogsFilters = ({
           <Form.Input
             field='model_name'
             prefix={<IconSearch />}
-            placeholder={t('模型名称')}
+            placeholder={t('模型名称（熊猫家可以模糊搜索喔）')}
             showClear
             pure
             size='small'
@@ -95,18 +95,43 @@ const LogsFilters = ({
 
           {isAdminUser && (
             <>
-              <Form.Input
-                field='channel'
-                prefix={<IconSearch />}
-                placeholder={t('渠道 ID')}
+              <Form.Select
+                field='empty_response'
+                placeholder={t('空回复筛选')}
                 showClear
                 pure
                 size='small'
+              >
+                <Form.Select.Option value='all'>{t('全部')}</Form.Select.Option>
+                <Form.Select.Option value='empty'>{t('仅空回复')}</Form.Select.Option>
+                <Form.Select.Option value='non_empty'>{t('仅非空回复')}</Form.Select.Option>
+              </Form.Select>
+            </>
+          )}
+
+          {isAdminUser && (
+            <>
+              <Form.TagInput
+                field='channel'
+                placeholder={t('渠道 ID（支持多个，回车添加）')}
+                showClear
+                pure
+                size='small'
+                separator={null}
+                addOnBlur={false}
               />
               <Form.Input
                 field='username'
                 prefix={<IconSearch />}
                 placeholder={t('用户名称')}
+                showClear
+                pure
+                size='small'
+              />
+              <Form.Input
+                field='user_id'
+                prefix={<IconSearch />}
+                placeholder={t('用户 ID')}
                 showClear
                 pure
                 size='small'

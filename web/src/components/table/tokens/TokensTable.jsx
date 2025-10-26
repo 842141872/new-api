@@ -25,6 +25,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getTokensColumns } from './TokensColumnDefs';
+import { PAGE_SIZE_OPTIONS } from '../../../constants/common.constant';
 
 const TokensTable = (tokensData) => {
   const {
@@ -97,7 +98,7 @@ const TokensTable = (tokensData) => {
         pageSize: pageSize,
         total: tokenCount,
         showSizeChanger: true,
-        pageSizeOptions: [10, 20, 50, 100],
+        pageSizeOptions: PAGE_SIZE_OPTIONS,
         onPageSizeChange: handlePageSizeChange,
         onPageChange: handlePageChange,
       }}

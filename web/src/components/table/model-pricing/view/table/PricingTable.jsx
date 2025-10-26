@@ -24,6 +24,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getPricingTableColumns } from './PricingTableColumns';
+import { PAGE_SIZE_OPTIONS } from '../../../../../constants/common.constant';
 
 const PricingTable = ({
   filteredModels,
@@ -119,7 +120,7 @@ const PricingTable = ({
             defaultPageSize: 20,
             pageSize: pageSize,
             showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50, 100],
+            pageSizeOptions: PAGE_SIZE_OPTIONS,
             onPageSizeChange: (size) => setPageSize(size),
           }}
         />

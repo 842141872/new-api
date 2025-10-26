@@ -71,6 +71,16 @@ const UsersFilters = ({
             size='small'
           />
         </div>
+        <div className='relative w-full md:w-56'>
+          <Form.Input
+            field='searchInviter'
+            prefix={<IconSearch />}
+            placeholder={t('按邀请人搜索(ID/用户名/邮箱)')}
+            showClear
+            pure
+            size='small'
+          />
+        </div>
         <div className='w-full md:w-48'>
           <Form.Select
             field='searchGroup'

@@ -25,6 +25,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getLogsColumns } from './UsageLogsColumnDefs';
+import { PAGE_SIZE_OPTIONS } from '../../../constants/common.constant';
 
 const LogsTable = (logsData) => {
   const {
@@ -105,7 +106,7 @@ const LogsTable = (logsData) => {
         currentPage: activePage,
         pageSize: pageSize,
         total: logCount,
-        pageSizeOptions: [10, 20, 50, 100],
+        pageSizeOptions: PAGE_SIZE_OPTIONS,
         showSizeChanger: true,
         onPageSizeChange: (size) => {
           handlePageSizeChange(size);

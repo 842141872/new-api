@@ -41,6 +41,7 @@ import {
 import { CHANNEL_OPTIONS } from '../../../constants';
 import { IconTreeTriangleDown, IconMore } from '@douyinfe/semi-icons';
 import { FaRandom } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 // Render functions
 const renderType = (type, channelInfo = undefined, t) => {
@@ -208,6 +209,7 @@ export const getChannelsColumns = ({
   setShowMultiKeyManageModal,
   setCurrentMultiKeyChannel,
 }) => {
+  const navigate = useNavigate();
   return [
     {
       key: COLUMN_KEYS.ID,
@@ -480,6 +482,7 @@ export const getChannelsColumns = ({
       title: '',
       dataIndex: 'operate',
       fixed: 'right',
+      width: 260,
       render: (text, record, index) => {
         if (record.children === undefined) {
           const moreMenuItems = [
@@ -605,6 +608,14 @@ export const getChannelsColumns = ({
                   {t('编辑')}
                 </Button>
               )}
+
+              <Button
+                type='tertiary'
+                size='small'
+                onClick={() => navigate(`/log?channel=${record.id}`)}
+              >
+                {t('日志')}
+              </Button>
 
               <Dropdown
                 trigger='click'

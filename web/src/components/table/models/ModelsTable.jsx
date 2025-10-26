@@ -25,6 +25,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getModelsColumns } from './ModelsColumnDefs';
+import { PAGE_SIZE_OPTIONS } from '../../../constants/common.constant';
 
 const ModelsTable = (modelsData) => {
   const {
@@ -81,7 +82,7 @@ const ModelsTable = (modelsData) => {
         pageSize: pageSize,
         total: modelCount,
         showSizeChanger: true,
-        pageSizeOptions: [10, 20, 50, 100],
+        pageSizeOptions: PAGE_SIZE_OPTIONS,
         onPageSizeChange: handlePageSizeChange,
         onPageChange: handlePageChange,
       }}

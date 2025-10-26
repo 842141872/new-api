@@ -25,6 +25,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getTaskLogsColumns } from './TaskLogsColumnDefs';
+import { PAGE_SIZE_OPTIONS } from '../../../constants/common.constant';
 
 const TaskLogsTable = (taskLogsData) => {
   const {
@@ -95,7 +96,7 @@ const TaskLogsTable = (taskLogsData) => {
         currentPage: activePage,
         pageSize: pageSize,
         total: logCount,
-        pageSizeOptions: [10, 20, 50, 100],
+        pageSizeOptions: PAGE_SIZE_OPTIONS,
         showSizeChanger: true,
         onPageSizeChange: handlePageSizeChange,
         onPageChange: handlePageChange,

@@ -442,45 +442,51 @@ const JSONEditor = ({
             keyValuePairs.slice(index + 1).every((p) => p.key !== pair.key);
 
           return (
-            <Row key={pair.id} gutter={8} align='middle'>
-              <Col span={10}>
-                <div className='relative'>
-                  <Input
-                    placeholder={t('键名')}
-                    value={pair.key}
-                    onChange={(newKey) => updateKey(pair.id, newKey)}
-                    status={isDuplicate ? 'warning' : undefined}
-                  />
-                  {isDuplicate && (
-                    <Tooltip
-                      content={
-                        isLastDuplicate
-                          ? t('这是重复键中的最后一个，其值将被使用')
-                          : t('重复的键名，此值将被后面的同名键覆盖')
-                      }
-                    >
-                      <IconAlertTriangle
-                        className='absolute right-2 top-1/2 transform -translate-y-1/2'
-                        style={{
-                          color: isLastDuplicate ? '#ff7d00' : '#faad14',
-                          fontSize: '14px',
-                        }}
-                      />
-                    </Tooltip>
-                  )}
-                </div>
-              </Col>
-              <Col span={12}>{renderValueInput(pair.id, pair.value)}</Col>
-              <Col span={2}>
-                <Button
-                  icon={<IconDelete />}
-                  type='danger'
-                  theme='borderless'
-                  onClick={() => removeKeyValue(pair.id)}
-                  style={{ width: '100%' }}
-                />
-              </Col>
-            </Row>
+            <div key={pair.id}>
+              <Row gutter={8} align='middle'>
+                <Col span={11}>
+                  <div className='relative'>
+                    <Input
+                      placeholder={t('键名')}
+                      value={pair.key}
+                      onChange={(newKey) => updateKey(pair.id, newKey)}
+                      status={isDuplicate ? 'warning' : undefined}
+                    />
+                    {isDuplicate && (
+                      <Tooltip
+                        content={
+                          isLastDuplicate
+                            ? t('这是重复键中的最后一个，其值将被使用')
+                            : t('重复的键名，此值将被后面的同名键覆盖')
+                        }
+                      >
+                        <IconAlertTriangle
+                          className='absolute right-2 top-1/2 transform -translate-y-1/2'
+                          style={{
+                            color: isLastDuplicate ? '#ff7d00' : '#faad14',
+                            fontSize: '14px',
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                  </div>
+                </Col>
+                <Col span={13}>
+                  <div className='flex items-start gap-2'>
+                    <div className='flex-1 min-w-0'>
+                      {renderValueInput(pair.id, pair.value)}
+                    </div>
+                    <Button
+                      icon={<IconDelete />}
+                      type='danger'
+                      theme='borderless'
+                      onClick={() => removeKeyValue(pair.id)}
+                      style={{ width: 24, height: 24, padding: 0 }}
+                    />
+                  </div>
+                </Col>
+              </Row>
+            </div>
           );
         })}
 

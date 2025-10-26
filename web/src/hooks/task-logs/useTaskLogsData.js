@@ -28,7 +28,7 @@ import {
   showSuccess,
   timestamp2string,
 } from '../../helpers';
-import { ITEMS_PER_PAGE } from '../../constants';
+import { ITEMS_PER_PAGE, getDefaultPageSize } from '../../constants';
 import { useTableCompactMode } from '../common/useTableCompactMode';
 
 export const useTaskLogsData = () => {
@@ -54,7 +54,7 @@ export const useTaskLogsData = () => {
   const [loading, setLoading] = useState(false);
   const [activePage, setActivePage] = useState(1);
   const [logCount, setLogCount] = useState(0);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [pageSize, setPageSize] = useState(getDefaultPageSize());
 
   // User and admin
   const isAdminUser = isAdmin();
@@ -270,7 +270,7 @@ export const useTaskLogsData = () => {
   // Initialize data
   useEffect(() => {
     const localPageSize =
-      parseInt(localStorage.getItem('task-page-size')) || ITEMS_PER_PAGE;
+      parseInt(localStorage.getItem('task-page-size')) || getDefaultPageSize();
     setPageSize(localPageSize);
     loadLogs(1, localPageSize).then();
   }, []);

@@ -26,6 +26,7 @@ import {
 } from '@douyinfe/semi-illustrations';
 import { getRedemptionsColumns, isExpired } from './RedemptionsColumnDefs';
 import DeleteRedemptionModal from './modals/DeleteRedemptionModal';
+import { PAGE_SIZE_OPTIONS } from '../../../constants/common.constant';
 
 const RedemptionsTable = (redemptionsData) => {
   const {
@@ -105,7 +106,7 @@ const RedemptionsTable = (redemptionsData) => {
           pageSize: pageSize,
           total: tokenCount,
           showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50, 100],
+          pageSizeOptions: PAGE_SIZE_OPTIONS,
           onPageSizeChange: redemptionsData.handlePageSizeChange,
           onPageChange: handlePageChange,
         }}

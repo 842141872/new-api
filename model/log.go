@@ -202,7 +202,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string) (logs []*Log, total int64, err error) {
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channels []int, group string, userId int, emptyResponse string) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -211,7 +211,7 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	}
 
 	if modelName != "" {
-		tx = tx.Where("logs.model_name like ?", modelName)
+		tx = tx.Where("logs.model_name like ?", "%"+modelName+"%")
 	}
 	if username != "" {
 		tx = tx.Where("logs.username = ?", username)
@@ -225,11 +225,21 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	if endTimestamp != 0 {
 		tx = tx.Where("logs.created_at <= ?", endTimestamp)
 	}
-	if channel != 0 {
-		tx = tx.Where("logs.channel_id = ?", channel)
+	if len(channels) > 0 {
+		tx = tx.Where("logs.channel_id IN ?", channels)
 	}
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	if userId != 0 {
+		tx = tx.Where("logs.user_id = ?", userId)
+	}
+	// 空回复筛选逻辑
+	if emptyResponse == "empty" {
+		// 只筛选成功但返回为空的请求，排除错误日志（type=5）
+		tx = tx.Where("(logs.completion_tokens = 0 OR logs.completion_tokens IS NULL) AND logs.type != ?", LogTypeError)
+	} else if emptyResponse == "non_empty" {
+		tx = tx.Where("(logs.completion_tokens > 0 AND logs.completion_tokens IS NOT NULL)")
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -244,6 +254,30 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	for _, log := range logs {
 		if log.ChannelId != 0 {
 			channelIds.Add(log.ChannelId)
+		}
+
+		// 收集重试渠道ID
+		if log.Other != "" {
+			var otherMap map[string]interface{}
+			otherMap, _ = common.StrToMap(log.Other)
+			if otherMap != nil && otherMap["admin_info"] != nil {
+				if adminInfo, ok := otherMap["admin_info"].(map[string]interface{}); ok {
+					if useChannel, ok := adminInfo["use_channel"].([]interface{}); ok {
+						for _, channelId := range useChannel {
+							var id int
+							switch v := channelId.(type) {
+							case float64:
+								id = int(v)
+							case int:
+								id = v
+							}
+							if id != 0 {
+								channelIds.Add(id)
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -261,13 +295,54 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		}
 		for i := range logs {
 			logs[i].ChannelName = channelMap[logs[i].ChannelId]
+
+			// 为重试渠道添加名称映射
+			if logs[i].Other != "" {
+				var otherMap map[string]interface{}
+				otherMap, _ = common.StrToMap(logs[i].Other)
+				if otherMap != nil && otherMap["admin_info"] != nil {
+					if adminInfo, ok := otherMap["admin_info"].(map[string]interface{}); ok {
+						// 优先使用已保存的渠道名称
+						if useChannelNames, exists := adminInfo["use_channel_names"].([]interface{}); exists && len(useChannelNames) > 0 {
+							// 已有保存的渠道名称，直接使用
+							channelNames := make([]string, 0, len(useChannelNames))
+							for _, name := range useChannelNames {
+								if nameStr, ok := name.(string); ok {
+									channelNames = append(channelNames, nameStr)
+								}
+							}
+							adminInfo["use_channel_names"] = channelNames
+							logs[i].Other = common.MapToJsonStr(otherMap)
+						} else if useChannel, ok := adminInfo["use_channel"].([]interface{}); ok && len(useChannel) > 0 {
+							// 没有保存的渠道名称，从数据库查询（兼容旧数据）
+							channelNames := make([]string, 0, len(useChannel))
+							for _, channelId := range useChannel {
+								var id int
+								switch v := channelId.(type) {
+								case float64:
+									id = int(v)
+								case int:
+									id = v
+								}
+								if name, exists := channelMap[id]; exists {
+									channelNames = append(channelNames, name)
+								} else {
+									channelNames = append(channelNames, fmt.Sprintf("渠道%d", id))
+								}
+							}
+							adminInfo["use_channel_names"] = channelNames
+							logs[i].Other = common.MapToJsonStr(otherMap)
+						}
+					}
+				}
+			}
 		}
 	}
 
 	return logs, total, err
 }
 
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string) (logs []*Log, total int64, err error) {
+func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, emptyResponse string) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB.Where("logs.user_id = ?", userId)
@@ -276,7 +351,7 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	}
 
 	if modelName != "" {
-		tx = tx.Where("logs.model_name like ?", modelName)
+		tx = tx.Where("logs.model_name like ?", "%"+modelName+"%")
 	}
 	if tokenName != "" {
 		tx = tx.Where("logs.token_name = ?", tokenName)
@@ -289,6 +364,13 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	}
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	// 空回复筛选逻辑
+	if emptyResponse == "empty" {
+		// 只筛选成功但返回为空的请求，排除错误日志（type=5）
+		tx = tx.Where("(logs.completion_tokens = 0 OR logs.completion_tokens IS NULL) AND logs.type != ?", LogTypeError)
+	} else if emptyResponse == "non_empty" {
+		tx = tx.Where("(logs.completion_tokens > 0 AND logs.completion_tokens IS NOT NULL)")
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -320,7 +402,7 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat) {
+func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channels []int, group string, userId int, emptyResponse string) (stat Stat) {
 	tx := LOG_DB.Table("logs").Select("sum(quota) quota")
 
 	// 为rpm和tpm创建单独的查询
@@ -341,16 +423,27 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name like ?", modelName)
-		rpmTpmQuery = rpmTpmQuery.Where("model_name like ?", modelName)
+		tx = tx.Where("model_name like ?", "%"+modelName+"%")
+		rpmTpmQuery = rpmTpmQuery.Where("model_name like ?", "%"+modelName+"%")
 	}
-	if channel != 0 {
-		tx = tx.Where("channel_id = ?", channel)
-		rpmTpmQuery = rpmTpmQuery.Where("channel_id = ?", channel)
+	if len(channels) > 0 {
+		tx = tx.Where("channel_id IN ?", channels)
+		rpmTpmQuery = rpmTpmQuery.Where("channel_id IN ?", channels)
 	}
 	if group != "" {
 		tx = tx.Where(logGroupCol+" = ?", group)
 		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
+	}
+	if userId != 0 {
+		tx = tx.Where("user_id = ?", userId)
+		rpmTpmQuery = rpmTpmQuery.Where("user_id = ?", userId)
+	}
+	if emptyResponse == "empty" {
+		tx = tx.Where("(completion_tokens = 0 OR completion_tokens IS NULL) AND type != ?", LogTypeError)
+		rpmTpmQuery = rpmTpmQuery.Where("(completion_tokens = 0 OR completion_tokens IS NULL) AND type != ?", LogTypeError)
+	} else if emptyResponse == "non_empty" {
+		tx = tx.Where("(completion_tokens > 0 AND completion_tokens IS NOT NULL)")
+		rpmTpmQuery = rpmTpmQuery.Where("(completion_tokens > 0 AND completion_tokens IS NOT NULL)")
 	}
 
 	tx = tx.Where("type = ?", LogTypeConsume)

@@ -132,6 +132,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	relayInfo.SetPromptTokens(tokens)
 
+	// 验证模型上下文限制
+	if err := helper.ValidateContextLimit(relayInfo.OriginModelName, tokens); err != nil {
+		newAPIError = types.NewError(err, types.ErrorCodeContextLimitExceeded, types.ErrOptionWithSkipRetry())
+		return
+	}
+
 	priceData, err := helper.ModelPriceHelper(c, relayInfo, tokens, meta)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeModelPriceError)
@@ -208,6 +214,15 @@ func addUsedChannel(c *gin.Context, channelId int) {
 	useChannel := c.GetStringSlice("use_channel")
 	useChannel = append(useChannel, fmt.Sprintf("%d", channelId))
 	c.Set("use_channel", useChannel)
+
+	// 同时保存渠道名称信息
+	useChannelNames := c.GetStringSlice("use_channel_names")
+	channelName := c.GetString("channel_name")
+	if channelName == "" {
+		channelName = fmt.Sprintf("渠道%d", channelId)
+	}
+	useChannelNames = append(useChannelNames, channelName)
+	c.Set("use_channel_names", useChannelNames)
 }
 
 func getChannel(c *gin.Context, group, originalModel string, retryCount int) (*model.Channel, *types.NewAPIError) {
@@ -308,8 +323,20 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		other["channel_id"] = channelId
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
+
+		// 添加模型重定向信息（如果存在）
+		if upstreamModel := c.GetString("upstream_model"); upstreamModel != "" && upstreamModel != modelName {
+			other["is_model_mapped"] = true
+			other["upstream_model_name"] = upstreamModel
+		}
+
 		adminInfo := make(map[string]interface{})
 		adminInfo["use_channel"] = c.GetStringSlice("use_channel")
+		// 添加渠道名称信息
+		useChannelNames := c.GetStringSlice("use_channel_names")
+		if len(useChannelNames) > 0 {
+			adminInfo["use_channel_names"] = useChannelNames
+		}
 		isMultiKey := common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
 		if isMultiKey {
 			adminInfo["is_multi_key"] = true
@@ -394,6 +421,12 @@ func RelayTask(c *gin.Context) {
 	group := c.GetString("group")
 	originalModel := c.GetString("original_model")
 	c.Set("use_channel", []string{fmt.Sprintf("%d", channelId)})
+	// 同时设置渠道名称
+	channelName := c.GetString("channel_name")
+	if channelName == "" {
+		channelName = fmt.Sprintf("渠道%d", channelId)
+	}
+	c.Set("use_channel_names", []string{channelName})
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
 		return

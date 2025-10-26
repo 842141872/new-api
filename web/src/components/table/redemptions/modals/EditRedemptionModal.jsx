@@ -323,14 +323,19 @@ const EditRedemptionModal = (props) => {
                           field='count'
                           label={t('生成数量')}
                           min={1}
+                          max={1000}
                           rules={[
                             { required: true, message: t('请输入生成数量') },
                             {
                               validator: (rule, v) => {
                                 const num = parseInt(v, 10);
-                                return num > 0
-                                  ? Promise.resolve()
-                                  : Promise.reject(t('生成数量必须大于0'));
+                                if (num <= 0) {
+                                  return Promise.reject(t('生成数量必须大于0'));
+                                }
+                                if (num > 1000) {
+                                  return Promise.reject(t('一次兑换码批量生成的个数不能大于 1000'));
+                                }
+                                return Promise.resolve();
                               },
                             },
                           ]}

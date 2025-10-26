@@ -38,6 +38,7 @@ import {
 } from '@douyinfe/semi-icons';
 import { API, showError, showSuccess } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import { PAGE_SIZE_OPTIONS } from '../../../constants/common.constant';
 
 export default function ModelRatioNotSetEditor(props) {
   const { t } = useTranslation();
@@ -57,8 +58,6 @@ export default function ModelRatioNotSetEditor(props) {
   const [batchCompletionRatioValue, setBatchCompletionRatioValue] =
     useState('');
   const { Text } = Typography;
-  // 定义可选的每页显示条数
-  const pageSizeOptions = [10, 20, 50, 100];
 
   const getAllEnabledModels = async () => {
     try {
@@ -436,7 +435,7 @@ export default function ModelRatioNotSetEditor(props) {
             total: filteredModels.length,
             onPageChange: (page) => setCurrentPage(page),
             onPageSizeChange: handlePageSizeChange,
-            pageSizeOptions: pageSizeOptions,
+            pageSizeOptions: PAGE_SIZE_OPTIONS,
             showTotal: true,
             showSizeChanger: true,
           }}

@@ -303,6 +303,21 @@ func SearchUsers(c *gin.Context) {
 	return
 }
 
+func SearchUsersByInviter(c *gin.Context) {
+	inviterKeyword := c.Query("inviter")
+	pageInfo := common.GetPageQuery(c)
+	users, total, err := model.SearchUsersByInviter(inviterKeyword, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(users)
+	common.ApiSuccess(c, pageInfo)
+	return
+}
+
 func GetUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

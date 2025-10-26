@@ -85,17 +85,19 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
+    port: 5173,
+    strictPort: true, // Strictly use port 5173, fail if occupied
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3500',
         changeOrigin: true,
       },
       '/mj': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3500',
         changeOrigin: true,
       },
       '/pg': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3500',
         changeOrigin: true,
       },
     },

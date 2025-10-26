@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -46,6 +47,7 @@ type User struct {
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
+	CreatedAt        time.Time      `json:"created_at"` // GORM standard field, auto-managed
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -279,6 +281,68 @@ func SearchUsers(keyword string, group string, startIdx int, num int) ([]*User, 
 
 	// 提交事务
 	if err = tx.Commit().Error; err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// SearchUsersByInviter searches for all users invited by a specific inviter
+// The inviterKeyword can be: inviter's user ID, username, or email
+func SearchUsersByInviter(inviterKeyword string, startIdx int, num int) ([]*User, int64, error) {
+	var users []*User
+	var total int64
+	var err error
+
+	// 首先查找邀请人的ID
+	var inviterId int
+
+	// 尝试将关键字转换为整数ID
+	keywordInt, err := strconv.Atoi(inviterKeyword)
+	if err == nil {
+		// 如果是数字，直接作为ID或者查询用户名/邮箱
+		var inviter User
+		err = DB.Unscoped().Where("id = ?", keywordInt).First(&inviter).Error
+		if err == nil {
+			inviterId = inviter.Id
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			// 如果不是"未找到"错误，说明是其他数据库错误
+			return nil, 0, err
+		}
+
+		// 如果没找到ID匹配的，尝试用户名或邮箱
+		if inviterId == 0 {
+			err = DB.Unscoped().Where("username = ? OR email = ?", inviterKeyword, inviterKeyword).First(&inviter).Error
+			if err == nil {
+				inviterId = inviter.Id
+			}
+		}
+	} else {
+		// 非数字关键字，查询用户名或邮箱
+		var inviter User
+		err = DB.Unscoped().Where("username = ? OR email = ?", inviterKeyword, inviterKeyword).First(&inviter).Error
+		if err == nil {
+			inviterId = inviter.Id
+		}
+	}
+
+	// 如果找不到邀请人，返回空结果
+	if inviterId == 0 {
+		return []*User{}, 0, nil
+	}
+
+	// 查询被该邀请人邀请的所有用户
+	query := DB.Unscoped().Model(&User{}).Where("inviter_id = ?", inviterId)
+
+	// 获取总数
+	err = query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 获取分页数据
+	err = query.Omit("password").Order("id desc").Limit(num).Offset(startIdx).Find(&users).Error
+	if err != nil {
 		return nil, 0, err
 	}
 

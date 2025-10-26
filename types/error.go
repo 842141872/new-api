@@ -40,8 +40,9 @@ const (
 	ErrorCodeSensitiveWordsDetected ErrorCode = "sensitive_words_detected"
 
 	// new api error
-	ErrorCodeCountTokenFailed   ErrorCode = "count_token_failed"
-	ErrorCodeModelPriceError    ErrorCode = "model_price_error"
+	ErrorCodeCountTokenFailed     ErrorCode = "count_token_failed"
+	ErrorCodeContextLimitExceeded ErrorCode = "context_limit_exceeded"
+	ErrorCodeModelPriceError      ErrorCode = "model_price_error"
 	ErrorCodeInvalidApiType     ErrorCode = "invalid_api_type"
 	ErrorCodeJsonMarshalFailed  ErrorCode = "json_marshal_failed"
 	ErrorCodeDoRequestFailed    ErrorCode = "do_request_failed"
@@ -135,6 +136,22 @@ func (e *NewAPIError) MaskSensitiveError() string {
 
 func (e *NewAPIError) SetMessage(message string) {
 	e.Err = errors.New(message)
+	switch relay := e.RelayError.(type) {
+	case OpenAIError:
+		relay.Message = message
+		e.RelayError = relay
+	case *OpenAIError:
+		if relay != nil {
+			relay.Message = message
+		}
+	case ClaudeError:
+		relay.Message = message
+		e.RelayError = relay
+	case *ClaudeError:
+		if relay != nil {
+			relay.Message = message
+		}
+	}
 }
 
 func (e *NewAPIError) ToOpenAIError() OpenAIError {
@@ -361,4 +378,36 @@ func IsRecordErrorLog(e *NewAPIError) bool {
 		return true
 	}
 	return *e.recordErrorLog
+}
+
+// ReplaceErrorMessageIfMatched replaces error message if it contains any of the configured keywords
+// Returns modified error with replaced message, or original error if no match found
+func ReplaceErrorMessageIfMatched(e *NewAPIError) *NewAPIError {
+	if e == nil {
+		return nil
+	}
+
+	if !common.ErrorResponseReplaceEnabled {
+		return e
+	}
+
+	if len(common.ErrorResponseMapping) == 0 {
+		return e
+	}
+
+	originalMessage := e.Error()
+	if originalMessage == "" {
+		return e
+	}
+
+	// Check if error message contains any of the keywords and replace with corresponding message
+	for keyword, replaceMessage := range common.ErrorResponseMapping {
+		if keyword != "" && strings.Contains(originalMessage, keyword) {
+			// 完全替换为自定义消息（不保留原始错误）
+			e.SetMessage(replaceMessage)
+			return e
+		}
+	}
+
+	return e
 }

@@ -325,7 +325,7 @@ const EditTagModal = (props) => {
       }
       bodyStyle={{ padding: '0' }}
       visible={visible}
-      width={600}
+      width={2400}
       onCancel={handleClose}
       footer={
         <div className='flex justify-end bg-white'>

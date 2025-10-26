@@ -21,7 +21,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@douyinfe/semi-ui';
 import { API, copy, showError, showSuccess } from '../../helpers';
-import { ITEMS_PER_PAGE } from '../../constants';
+import { ITEMS_PER_PAGE, getDefaultPageSize } from '../../constants';
 import { useTableCompactMode } from '../common/useTableCompactMode';
 
 export const useTokensData = (openFluentNotification) => {
@@ -32,7 +32,7 @@ export const useTokensData = (openFluentNotification) => {
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
   const [tokenCount, setTokenCount] = useState(0);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [pageSize, setPageSize] = useState(getDefaultPageSize());
   const [searching, setSearching] = useState(false);
 
   // Selection state

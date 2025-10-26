@@ -1352,7 +1352,7 @@ const EditChannelModal = (props) => {
         }
         bodyStyle={{ padding: '0' }}
         visible={props.visible}
-        width={isMobile ? '100%' : 600}
+        width={isMobile ? '100%' : 1400}
         footer={
           <div className='flex justify-between items-center bg-white'>
             <div className='flex gap-2'>

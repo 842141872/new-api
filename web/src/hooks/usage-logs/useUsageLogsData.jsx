@@ -37,7 +37,7 @@ import {
   renderClaudeModelPrice,
   renderModelPrice,
 } from '../../helpers';
-import { ITEMS_PER_PAGE } from '../../constants';
+import { ITEMS_PER_PAGE, getDefaultPageSize } from '../../constants';
 import { useTableCompactMode } from '../common/useTableCompactMode';
 
 export const useLogsData = () => {
@@ -69,7 +69,7 @@ export const useLogsData = () => {
   const [loadingStat, setLoadingStat] = useState(false);
   const [activePage, setActivePage] = useState(1);
   const [logCount, setLogCount] = useState(0);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [pageSize, setPageSize] = useState(getDefaultPageSize());
   const [logType, setLogType] = useState(0);
 
   // User and admin
@@ -92,8 +92,10 @@ export const useLogsData = () => {
     username: '',
     token_name: '',
     model_name: '',
-    channel: '',
+    channel: [],
     group: '',
+    empty_response: 'all',
+    user_id: '',
     dateRange: [
       timestamp2string(getTodayStartTimestamp()),
       timestamp2string(now.getTime() / 1000 + 3600),
@@ -214,14 +216,28 @@ export const useLogsData = () => {
       end_timestamp = formValues.dateRange[1];
     }
 
+    // 处理 channel：可能是数组（多个标签）或字符串（单个输入）
+    let channelValue = '';
+    if (formValues.channel) {
+      if (Array.isArray(formValues.channel)) {
+        // 数组转逗号分隔字符串
+        channelValue = formValues.channel.join(',');
+      } else {
+        // 已经是字符串
+        channelValue = formValues.channel;
+      }
+    }
+
     return {
       username: formValues.username || '',
       token_name: formValues.token_name || '',
       model_name: formValues.model_name || '',
       start_timestamp,
       end_timestamp,
-      channel: formValues.channel || '',
+      channel: channelValue,
       group: formValues.group || '',
+      empty_response: formValues.empty_response || 'all',
+      user_id: formValues.user_id || '',
       logType: formValues.logType ? parseInt(formValues.logType) : 0,
     };
   };
@@ -234,12 +250,14 @@ export const useLogsData = () => {
       start_timestamp,
       end_timestamp,
       group,
+      empty_response,
+      user_id,
       logType: formLogType,
     } = getFormValues();
     const currentLogType = formLogType !== undefined ? formLogType : logType;
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    let url = `/api/log/self/stat?type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}`;
+    let url = `/api/log/self/stat?type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&empty_response=${empty_response}&user_id=${user_id}`;
     url = encodeURI(url);
     let res = await API.get(url);
     const { success, message, data } = res.data;
@@ -259,12 +277,14 @@ export const useLogsData = () => {
       end_timestamp,
       channel,
       group,
+      empty_response,
+      user_id,
       logType: formLogType,
     } = getFormValues();
     const currentLogType = formLogType !== undefined ? formLogType : logType;
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}`;
+    let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&empty_response=${empty_response}&user_id=${user_id}`;
     url = encodeURI(url);
     let res = await API.get(url);
     const { success, message, data } = res.data;
@@ -494,6 +514,7 @@ export const useLogsData = () => {
       end_timestamp,
       channel,
       group,
+      empty_response,
       logType: formLogType,
     } = getFormValues();
 
@@ -507,9 +528,9 @@ export const useLogsData = () => {
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
     if (isAdminUser) {
-      url = `/api/log/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}`;
+      url = `/api/log/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&empty_response=${empty_response}`;
     } else {
-      url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}`;
+      url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&empty_response=${empty_response}`;
     }
     url = encodeURI(url);
     const res = await API.get(url);
@@ -564,7 +585,7 @@ export const useLogsData = () => {
   // Initialize data
   useEffect(() => {
     const localPageSize =
-      parseInt(localStorage.getItem('page-size')) || ITEMS_PER_PAGE;
+      parseInt(localStorage.getItem('page-size')) || getDefaultPageSize();
     setPageSize(localPageSize);
     loadLogs(activePage, localPageSize)
       .then()

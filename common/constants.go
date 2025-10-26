@@ -171,6 +171,12 @@ var (
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute
 
+// Error Response Replace Settings
+var (
+	ErrorResponseReplaceEnabled bool
+	ErrorResponseMapping        map[string]string // 错误关键词到替换消息的映射
+)
+
 const (
 	UserStatusEnabled  = 1 // don't use 0, 0 is the default value!
 	UserStatusDisabled = 2 // also don't use 0

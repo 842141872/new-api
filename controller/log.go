@@ -3,12 +3,42 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 
 	"github.com/gin-gonic/gin"
 )
+
+// parseChannelIDs 解析渠道ID参数，支持单个ID或逗号分隔的多个ID
+func parseChannelIDs(channelStr string) []int {
+	if channelStr == "" {
+		return []int{}
+	}
+
+	// 去除方括号（如果前端发送 JSON 数组格式）
+	channelStr = strings.Trim(channelStr, "[]")
+	channelStr = strings.TrimSpace(channelStr)
+
+	if channelStr == "" {
+		return []int{}
+	}
+
+	// 分割字符串
+	parts := strings.Split(channelStr, ",")
+	var channels []int
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		part = strings.Trim(part, "\"") // 去除可能的引号
+		if id, err := strconv.Atoi(part); err == nil && id > 0 {
+			channels = append(channels, id)
+		}
+	}
+
+	return channels
+}
 
 func GetAllLogs(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
@@ -18,9 +48,11 @@ func GetAllLogs(c *gin.Context) {
 	username := c.Query("username")
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
-	channel, _ := strconv.Atoi(c.Query("channel"))
+	channels := parseChannelIDs(c.Query("channel"))
 	group := c.Query("group")
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group)
+	userId, _ := strconv.Atoi(c.Query("user_id"))
+	emptyResponse := c.Query("empty_response")
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channels, group, userId, emptyResponse)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -40,7 +72,8 @@ func GetUserLogs(c *gin.Context) {
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
 	group := c.Query("group")
-	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group)
+	emptyResponse := c.Query("empty_response")
+	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, emptyResponse)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -106,9 +139,11 @@ func GetLogsStat(c *gin.Context) {
 	tokenName := c.Query("token_name")
 	username := c.Query("username")
 	modelName := c.Query("model_name")
-	channel, _ := strconv.Atoi(c.Query("channel"))
+	channels := parseChannelIDs(c.Query("channel"))
 	group := c.Query("group")
-	stat := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group)
+	userId, _ := strconv.Atoi(c.Query("user_id"))
+	emptyResponse := c.Query("empty_response")
+	stat := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channels, group, userId, emptyResponse)
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, "")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -129,9 +164,10 @@ func GetLogsSelfStat(c *gin.Context) {
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
-	channel, _ := strconv.Atoi(c.Query("channel"))
+	channels := parseChannelIDs(c.Query("channel"))
 	group := c.Query("group")
-	quotaNum := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group)
+	emptyResponse := c.Query("empty_response")
+	quotaNum := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channels, group, 0, emptyResponse)
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, tokenName)
 	c.JSON(200, gin.H{
 		"success": true,

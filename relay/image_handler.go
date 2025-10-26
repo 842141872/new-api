@@ -95,6 +95,8 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
 			// reset status code 重置状态码
 			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
+			// 替换错误信息
+			newAPIError = types.ReplaceErrorMessageIfMatched(newAPIError)
 			return newAPIError
 		}
 	}
@@ -103,6 +105,8 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 	if newAPIError != nil {
 		// reset status code 重置状态码
 		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
+		// 替换错误信息
+		newAPIError = types.ReplaceErrorMessageIfMatched(newAPIError)
 		return newAPIError
 	}
 

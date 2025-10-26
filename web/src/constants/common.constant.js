@@ -17,7 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+import { getDefaultPageSize } from '../helpers/utils';
+
 export const ITEMS_PER_PAGE = 10; // this value must keep same as the one defined in backend!
+
+// Export function to get page size based on user role
+export { getDefaultPageSize };
+
+// Page size options for pagination
+export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200, 500, 1000];
 
 export const DEFAULT_ENDPOINT = '/api/ratio_config';
 

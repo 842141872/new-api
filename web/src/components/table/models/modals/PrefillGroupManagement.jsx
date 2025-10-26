@@ -195,8 +195,6 @@ const PrefillGroupManagement = ({ visible, onClose }) => {
     {
       title: '',
       key: 'action',
-      fixed: 'right',
-      width: 140,
       render: (_, record) => (
         <Space>
           <Button size='small' onClick={() => handleEdit(record)}>

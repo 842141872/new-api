@@ -170,6 +170,8 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 			newApiErr := service.RelayErrorHandler(c.Request.Context(), httpResp, false)
 			// reset status code 重置状态码
 			service.ResetStatusCode(newApiErr, statusCodeMappingStr)
+			// 替换错误信息
+			newApiErr = types.ReplaceErrorMessageIfMatched(newApiErr)
 			return newApiErr
 		}
 	}
@@ -178,6 +180,8 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 	if newApiErr != nil {
 		// reset status code 重置状态码
 		service.ResetStatusCode(newApiErr, statusCodeMappingStr)
+		// 替换错误信息
+		newApiErr = types.ReplaceErrorMessageIfMatched(newApiErr)
 		return newApiErr
 	}
 

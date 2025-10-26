@@ -1,4 +1,4 @@
-/*
+﻿/*
 Copyright (C) 2025 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import CardPro from '../../common/ui/CardPro';
 import LogsTable from './UsageLogsTable';
 import LogsActions from './UsageLogsActions';
@@ -31,6 +32,24 @@ import { createCardProPagination } from '../../../helpers/utils';
 const LogsPage = () => {
   const logsData = useLogsData();
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Handle URL parameters for channel ID
+  useEffect(() => {
+    if (logsData.formApi) {
+      const searchParams = new URLSearchParams(location.search);
+      const channelParam = searchParams.get('channel');
+
+      if (channelParam) {
+        // Set channel ID in form
+        logsData.formApi.setValue('channel', channelParam);
+        // Trigger search after a short delay to ensure form is updated
+        setTimeout(() => {
+          logsData.refresh();
+        }, 100);
+      }
+    }
+  }, [location.search, logsData.formApi, logsData.refresh]);
 
   return (
     <>

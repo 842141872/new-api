@@ -25,6 +25,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getChannelsColumns } from './ChannelsColumnDefs';
+import { PAGE_SIZE_OPTIONS } from '../../../constants';
 
 const ChannelsTable = (channelsData) => {
   const {
@@ -131,7 +132,7 @@ const ChannelsTable = (channelsData) => {
         currentPage: activePage,
         pageSize: pageSize,
         total: channelCount,
-        pageSizeOpts: [10, 20, 50, 100],
+        pageSizeOpts: PAGE_SIZE_OPTIONS,
         showSizeChanger: true,
         onPageSizeChange: handlePageSizeChange,
         onPageChange: handlePageChange,

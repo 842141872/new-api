@@ -183,6 +183,8 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
 			// reset status code 重置状态码
 			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
+			// 替换错误信息
+			newAPIError = types.ReplaceErrorMessageIfMatched(newAPIError)
 			return newAPIError
 		}
 	}
@@ -190,6 +192,8 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	usage, openaiErr := adaptor.DoResponse(c, resp.(*http.Response), info)
 	if openaiErr != nil {
 		service.ResetStatusCode(openaiErr, statusCodeMappingStr)
+		// 替换错误信息
+		openaiErr = types.ReplaceErrorMessageIfMatched(openaiErr)
 		return openaiErr
 	}
 
@@ -282,6 +286,8 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 		if httpResp.StatusCode != http.StatusOK {
 			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
 			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
+			// 替换错误信息
+			newAPIError = types.ReplaceErrorMessageIfMatched(newAPIError)
 			return newAPIError
 		}
 	}
@@ -289,6 +295,8 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 	usage, openaiErr := adaptor.DoResponse(c, resp.(*http.Response), info)
 	if openaiErr != nil {
 		service.ResetStatusCode(openaiErr, statusCodeMappingStr)
+		// 替换错误信息
+		openaiErr = types.ReplaceErrorMessageIfMatched(openaiErr)
 		return openaiErr
 	}
 

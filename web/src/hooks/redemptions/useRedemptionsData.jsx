@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { useState, useEffect } from 'react';
 import { API, showError, showSuccess, copy } from '../../helpers';
-import { ITEMS_PER_PAGE } from '../../constants';
+import { ITEMS_PER_PAGE, getDefaultPageSize } from '../../constants';
 import {
   REDEMPTION_ACTIONS,
   REDEMPTION_STATUS,
@@ -36,7 +36,7 @@ export const useRedemptionsData = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [activePage, setActivePage] = useState(1);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [pageSize, setPageSize] = useState(getDefaultPageSize());
   const [tokenCount, setTokenCount] = useState(0);
   const [selectedKeys, setSelectedKeys] = useState([]);
 

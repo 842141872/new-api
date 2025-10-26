@@ -194,6 +194,37 @@ const renderInviteInfo = (text, record, t) => {
 };
 
 /**
+ * Render registration time
+ */
+const renderCreatedAt = (text, record, t) => {
+  if (!record.created_at || record.created_at === '0001-01-01T00:00:00Z') {
+    return (
+      <span className='text-sm text-gray-500'>
+        {t('未记录')}
+      </span>
+    );
+  }
+
+  // Parse ISO 8601 timestamp and format to local time
+  const date = new Date(record.created_at);
+  const formattedDate = date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  return (
+    <span className='text-sm whitespace-nowrap'>
+      {formattedDate}
+    </span>
+  );
+};
+
+/**
  * Render operations column
  */
 const renderOperations = (
@@ -339,6 +370,11 @@ export const getUsersColumns = ({
       title: t('邀请信息'),
       dataIndex: 'invite',
       render: (text, record, index) => renderInviteInfo(text, record, t),
+    },
+    {
+      title: t('注册时间'),
+      dataIndex: 'created_at',
+      render: (text, record, index) => renderCreatedAt(text, record, t),
     },
     {
       title: '',

@@ -1,4 +1,4 @@
-/*
+﻿/*
 Copyright (C) 2025 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
@@ -31,6 +31,7 @@ import EnableDisableUserModal from './modals/EnableDisableUserModal';
 import DeleteUserModal from './modals/DeleteUserModal';
 import ResetPasskeyModal from './modals/ResetPasskeyModal';
 import ResetTwoFAModal from './modals/ResetTwoFAModal';
+import { PAGE_SIZE_OPTIONS } from '../../../constants';
 
 const UsersTable = (usersData) => {
   const {
@@ -168,7 +169,7 @@ const UsersTable = (usersData) => {
           currentPage: activePage,
           pageSize: pageSize,
           total: userCount,
-          pageSizeOpts: [10, 20, 50, 100],
+          pageSizeOpts: PAGE_SIZE_OPTIONS,
           showSizeChanger: true,
           onPageSizeChange: handlePageSizeChange,
           onPageChange: handlePageChange,
@@ -182,7 +183,7 @@ const UsersTable = (usersData) => {
             darkModeImage={
               <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
             }
-            description={t('搜索无结果')}
+            description={t('鎼滅储鏃犵粨鏋?)}
             style={{ padding: 30 }}
           />
         }

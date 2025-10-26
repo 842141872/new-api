@@ -12,18 +12,20 @@ import (
 )
 
 type Redemption struct {
-	Id           int            `json:"id"`
-	UserId       int            `json:"user_id"`
-	Key          string         `json:"key" gorm:"type:char(32);uniqueIndex"`
-	Status       int            `json:"status" gorm:"default:1"`
-	Name         string         `json:"name" gorm:"index"`
-	Quota        int            `json:"quota" gorm:"default:100"`
-	CreatedTime  int64          `json:"created_time" gorm:"bigint"`
-	RedeemedTime int64          `json:"redeemed_time" gorm:"bigint"`
-	Count        int            `json:"count" gorm:"-:all"` // only for api request
-	UsedUserId   int            `json:"used_user_id"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
-	ExpiredTime  int64          `json:"expired_time" gorm:"bigint"` // 过期时间，0 表示不过期
+	Id             int            `json:"id"`
+	UserId         int            `json:"user_id"`
+	Key            string         `json:"key" gorm:"type:char(32);uniqueIndex"`
+	Status         int            `json:"status" gorm:"default:1"`
+	Name           string         `json:"name" gorm:"index"`
+	Quota          int            `json:"quota" gorm:"default:100"`
+	CreatedTime    int64          `json:"created_time" gorm:"bigint"`
+	RedeemedTime   int64          `json:"redeemed_time" gorm:"bigint"`
+	Count          int            `json:"count" gorm:"-:all"` // only for api request
+	UsedUserId     int            `json:"used_user_id"`
+	UsedUserName   string         `json:"used_user_name" gorm:"-"` // 兑换人用户名，不存储到数据库
+	UsedUserEmail  string         `json:"used_user_email" gorm:"-"` // 兑换人邮箱，不存储到数据库
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
+	ExpiredTime    int64          `json:"expired_time" gorm:"bigint"` // 过期时间，0 表示不过期
 }
 
 func GetAllRedemptions(startIdx int, num int) (redemptions []*Redemption, total int64, err error) {
@@ -45,11 +47,37 @@ func GetAllRedemptions(startIdx int, num int) (redemptions []*Redemption, total 
 		return nil, 0, err
 	}
 
-	// 获取分页数据
+	// 获取分页数据并关联用户名
 	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&redemptions).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
+	}
+
+	// 批量填充兑换人用户名和邮箱
+	userIds := make([]int, 0)
+	for _, r := range redemptions {
+		if r.UsedUserId > 0 {
+			userIds = append(userIds, r.UsedUserId)
+		}
+	}
+
+	if len(userIds) > 0 {
+		var users []*User
+		if err := tx.Select("id", "username", "email").Where("id IN ?", userIds).Find(&users).Error; err == nil {
+			// 构建用户ID到用户信息的映射
+			userMap := make(map[int]*User)
+			for _, u := range users {
+				userMap[u.Id] = u
+			}
+			// 填充数据
+			for _, r := range redemptions {
+				if user, ok := userMap[r.UsedUserId]; ok {
+					r.UsedUserName = user.Username
+					r.UsedUserEmail = user.Email
+				}
+			}
+		}
 	}
 
 	// 提交事务
@@ -74,11 +102,16 @@ func SearchRedemptions(keyword string, startIdx int, num int) (redemptions []*Re
 	// Build query based on keyword type
 	query := tx.Model(&Redemption{})
 
+	keyCol := "`key`"
+	if common.UsingPostgreSQL {
+		keyCol = `"key"`
+	}
+
 	// Only try to convert to ID if the string represents a valid integer
 	if id, err := strconv.Atoi(keyword); err == nil {
-		query = query.Where("id = ? OR name LIKE ?", id, keyword+"%")
+		query = query.Where("id = ? OR name LIKE ? OR "+keyCol+" = ?", id, keyword+"%", keyword)
 	} else {
-		query = query.Where("name LIKE ?", keyword+"%")
+		query = query.Where("name LIKE ? OR "+keyCol+" = ?", keyword+"%", keyword)
 	}
 
 	// Get total count
@@ -93,6 +126,32 @@ func SearchRedemptions(keyword string, startIdx int, num int) (redemptions []*Re
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
+	}
+
+	// 批量填充兑换人用户名和邮箱
+	userIds := make([]int, 0)
+	for _, r := range redemptions {
+		if r.UsedUserId > 0 {
+			userIds = append(userIds, r.UsedUserId)
+		}
+	}
+
+	if len(userIds) > 0 {
+		var users []*User
+		if err := tx.Select("id", "username", "email").Where("id IN ?", userIds).Find(&users).Error; err == nil {
+			// 构建用户ID到用户信息的映射
+			userMap := make(map[int]*User)
+			for _, u := range users {
+				userMap[u.Id] = u
+			}
+			// 填充数据
+			for _, r := range redemptions {
+				if user, ok := userMap[r.UsedUserId]; ok {
+					r.UsedUserName = user.Username
+					r.UsedUserEmail = user.Email
+				}
+			}
+		}
 	}
 
 	if err = tx.Commit().Error; err != nil {

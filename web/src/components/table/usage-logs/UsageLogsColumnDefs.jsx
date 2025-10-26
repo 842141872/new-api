@@ -343,15 +343,7 @@ export const getLogsColumns = ({
           if (record.group) {
             return <>{renderGroup(record.group)}</>;
           } else {
-            let other = null;
-            try {
-              other = JSON.parse(record.other);
-            } catch (e) {
-              console.error(
-                `Failed to parse record.other: "${record.other}".`,
-                e,
-              );
-            }
+            let other = getLogOther(record.other);
             if (other === null) {
               return <></>;
             }
@@ -498,8 +490,10 @@ export const getLogsColumns = ({
           return <></>;
         }
         let content = t('渠道') + `：${record.channel}`;
+        let tooltipContent = null;
+
         if (record.other !== '') {
-          let other = JSON.parse(record.other);
+          let other = getLogOther(record.other);
           if (other === null) {
             return <></>;
           }
@@ -512,10 +506,44 @@ export const getLogsColumns = ({
               let useChannel = other.admin_info.use_channel;
               let useChannelStr = useChannel.join('->');
               content = t('渠道') + `：${useChannelStr}`;
+
+              // 如果有渠道名称数组，显示 Tooltip
+              if (
+                other.admin_info.use_channel_names &&
+                Array.isArray(other.admin_info.use_channel_names) &&
+                other.admin_info.use_channel_names.length > 0
+              ) {
+                tooltipContent = (
+                  <div style={{ padding: '8px 0' }}>
+                    <Typography.Text strong style={{ marginBottom: 8, display: 'block' }}>
+                      {t('重试渠道列表')}:
+                    </Typography.Text>
+                    {other.admin_info.use_channel_names.map((name, idx) => (
+                      <div key={idx} style={{ padding: '4px 0' }}>
+                        <Tag color={colors[useChannel[idx] % colors.length]} shape='circle' size='small'>
+                          {useChannel[idx]}
+                        </Tag>
+                        <span style={{ marginLeft: 8 }}>{name}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
             }
           }
         }
-        return isAdminUser ? <div>{content}</div> : <></>;
+
+        return isAdminUser ? (
+          tooltipContent ? (
+            <Tooltip content={tooltipContent}>
+              <div style={{ cursor: 'help' }}>{content}</div>
+            </Tooltip>
+          ) : (
+            <div>{content}</div>
+          )
+        ) : (
+          <></>
+        );
       },
     },
     {

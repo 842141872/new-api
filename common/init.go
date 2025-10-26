@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -132,4 +133,25 @@ func initConstantEnv() {
 		}
 		constant.TaskPricePatches = taskPricePatches
 	}
+
+	// Error Response Replace Settings
+	ErrorResponseReplaceEnabled = GetEnvOrDefaultBool("ERROR_RESPONSE_REPLACE_ENABLED", false)
+
+	// Parse JSON mapping from environment variable
+	mappingStr := GetEnvOrDefaultString("ERROR_RESPONSE_MAPPING", `{\"no candidates returned\":\"The current model is busy, please try again later\",\"empty response\":\"Model returned empty content, please check your input\",\"PROHIBITED_CONTENT\":\"Content violates usage policy, please modify and retry\"}`)
+	if mappingStr != "" {
+		ErrorResponseMapping = parseErrorMapping(mappingStr)
+	}
+}
+
+// parseErrorMapping parses JSON string to map[string]string
+func parseErrorMapping(jsonStr string) map[string]string {
+	mapping := make(map[string]string)
+	// Use encoding/json to parse
+	err := json.Unmarshal([]byte(jsonStr), &mapping)
+	if err != nil {
+		log.Printf("Failed to parse ERROR_RESPONSE_MAPPING: %v, using empty mapping", err)
+		return make(map[string]string)
+	}
+	return mapping
 }

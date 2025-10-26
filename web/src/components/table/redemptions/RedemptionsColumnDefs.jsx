@@ -139,6 +139,57 @@ export const getRedemptionsColumns = ({
       },
     },
     {
+      title: t('兑换人用户名'),
+      dataIndex: 'used_user_name',
+      render: (text, record) => {
+        if (record.used_user_id === 0) {
+          return <div>{t('无')}</div>;
+        }
+        return (
+          <div>
+            {text ? (
+              <Tag color='blue' shape='circle'>
+                {text}
+              </Tag>
+            ) : (
+              t('未知')
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: t('兑换人邮箱'),
+      dataIndex: 'used_user_email',
+      render: (text, record) => {
+        if (record.used_user_id === 0) {
+          return <div>{t('无')}</div>;
+        }
+        // Check if email is valid (not empty, null, undefined, or non-string)
+        if (!text || typeof text !== 'string' || text.trim() === '') {
+          return <div>{t('未知')}</div>;
+        }
+        return (
+          <div>
+            <Tag color='cyan' shape='circle'>
+              {text}
+            </Tag>
+          </div>
+        );
+      },
+    },
+    {
+      title: t('兑换时间'),
+      dataIndex: 'redeemed_time',
+      render: (text) => {
+        // Check if redeemed_time is valid (not 0, null, undefined, or NaN)
+        if (!text || text === 0 || isNaN(text)) {
+          return <div></div>;
+        }
+        return <div>{renderTimestamp(text)}</div>;
+      },
+    },
+    {
       title: '',
       dataIndex: 'operate',
       fixed: 'right',

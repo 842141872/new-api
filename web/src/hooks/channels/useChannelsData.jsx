@@ -31,6 +31,7 @@ import {
   CHANNEL_OPTIONS,
   ITEMS_PER_PAGE,
   MODEL_TABLE_PAGE_SIZE,
+  getDefaultPageSize,
 } from '../../constants';
 import { useIsMobile } from '../common/useIsMobile';
 import { useTableCompactMode } from '../common/useTableCompactMode';
@@ -46,7 +47,7 @@ export const useChannelsData = () => {
   const [activePage, setActivePage] = useState(1);
   const [idSort, setIdSort] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [pageSize, setPageSize] = useState(getDefaultPageSize());
   const [channelCount, setChannelCount] = useState(0);
   const [groupOptions, setGroupOptions] = useState([]);
 
@@ -122,7 +123,7 @@ export const useChannelsData = () => {
   useEffect(() => {
     const localIdSort = localStorage.getItem('id-sort') === 'true';
     const localPageSize =
-      parseInt(localStorage.getItem('page-size')) || ITEMS_PER_PAGE;
+      parseInt(localStorage.getItem('page-size')) || getDefaultPageSize();
     const localEnableTagMode =
       localStorage.getItem('enable-tag-mode') === 'true';
     const localEnableBatchDelete =
