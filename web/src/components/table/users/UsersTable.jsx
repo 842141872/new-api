@@ -183,7 +183,7 @@ const UsersTable = (usersData) => {
             darkModeImage={
               <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
             }
-            description={t('鎼滅储鏃犵粨鏋?)}
+            description={t('搜索无结果')}
             style={{ padding: 30 }}
           />
         }
