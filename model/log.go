@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -202,7 +203,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channels []int, group string, userId int, emptyResponse string) (logs []*Log, total int64, err error) {
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channels []int, group string, userId int, emptyResponse string, tokenCount int) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -214,7 +215,17 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		tx = tx.Where("logs.model_name like ?", "%"+modelName+"%")
 	}
 	if username != "" {
-		tx = tx.Where("logs.username = ?", username)
+		// 支持通过用户名、用户ID或邮箱模糊搜索
+		// 尝试解析为整数ID
+		if userId, err := strconv.Atoi(username); err == nil {
+			// 如果是数字，按用户ID精确匹配
+			tx = tx.Where("logs.user_id = ?", userId)
+		} else {
+			// 否则，需要关联用户表进行用户名或邮箱的模糊搜索
+			tx = tx.Joins("LEFT JOIN users ON users.id = logs.user_id").
+				Where("logs.username LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
+					"%"+username+"%", "%"+username+"%", "%"+username+"%")
+		}
 	}
 	if tokenName != "" {
 		tx = tx.Where("logs.token_name = ?", tokenName)
@@ -240,6 +251,10 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		tx = tx.Where("(logs.completion_tokens = 0 OR logs.completion_tokens IS NULL) AND logs.type != ?", LogTypeError)
 	} else if emptyResponse == "non_empty" {
 		tx = tx.Where("(logs.completion_tokens > 0 AND logs.completion_tokens IS NOT NULL)")
+	}
+	// 输入/输出字数精确匹配（OR关系）
+	if tokenCount > 0 {
+		tx = tx.Where("logs.prompt_tokens = ? OR logs.completion_tokens = ?", tokenCount, tokenCount)
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -342,7 +357,7 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	return logs, total, err
 }
 
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, emptyResponse string) (logs []*Log, total int64, err error) {
+func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, emptyResponse string, tokenCount int) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB.Where("logs.user_id = ?", userId)
@@ -371,6 +386,10 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 		tx = tx.Where("(logs.completion_tokens = 0 OR logs.completion_tokens IS NULL) AND logs.type != ?", LogTypeError)
 	} else if emptyResponse == "non_empty" {
 		tx = tx.Where("(logs.completion_tokens > 0 AND logs.completion_tokens IS NOT NULL)")
+	}
+	// 输入/输出字数精确匹配（OR关系）
+	if tokenCount > 0 {
+		tx = tx.Where("logs.prompt_tokens = ? OR logs.completion_tokens = ?", tokenCount, tokenCount)
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -409,8 +428,20 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, sum(prompt_tokens) + sum(completion_tokens) tpm")
 
 	if username != "" {
-		tx = tx.Where("username = ?", username)
-		rpmTpmQuery = rpmTpmQuery.Where("username = ?", username)
+		// 支持通过用户名、用户ID或邮箱模糊搜索
+		if userId, err := strconv.Atoi(username); err == nil {
+			// 如果是数字，按用户ID精确匹配
+			tx = tx.Where("user_id = ?", userId)
+			rpmTpmQuery = rpmTpmQuery.Where("user_id = ?", userId)
+		} else {
+			// 否则，需要关联用户表进行用户名或邮箱的模糊搜索
+			tx = tx.Joins("LEFT JOIN users ON users.id = logs.user_id").
+				Where("logs.username LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
+					"%"+username+"%", "%"+username+"%", "%"+username+"%")
+			rpmTpmQuery = rpmTpmQuery.Joins("LEFT JOIN users ON users.id = logs.user_id").
+				Where("logs.username LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
+					"%"+username+"%", "%"+username+"%", "%"+username+"%")
+		}
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)

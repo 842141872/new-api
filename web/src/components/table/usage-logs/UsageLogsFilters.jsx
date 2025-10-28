@@ -93,6 +93,17 @@ const LogsFilters = ({
             size='small'
           />
 
+          <Form.InputNumber
+            field='token_count'
+            prefix={<IconSearch />}
+            placeholder={t('输入/输出字数')}
+            showClear
+            pure
+            size='small'
+            min={0}
+            hideButtons
+          />
+
           {isAdminUser && (
             <>
               <Form.Select

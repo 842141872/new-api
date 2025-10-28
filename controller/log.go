@@ -52,7 +52,8 @@ func GetAllLogs(c *gin.Context) {
 	group := c.Query("group")
 	userId, _ := strconv.Atoi(c.Query("user_id"))
 	emptyResponse := c.Query("empty_response")
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channels, group, userId, emptyResponse)
+	tokenCount, _ := strconv.Atoi(c.Query("token_count"))
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channels, group, userId, emptyResponse, tokenCount)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -73,7 +74,8 @@ func GetUserLogs(c *gin.Context) {
 	modelName := c.Query("model_name")
 	group := c.Query("group")
 	emptyResponse := c.Query("empty_response")
-	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, emptyResponse)
+	tokenCount, _ := strconv.Atoi(c.Query("token_count"))
+	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, emptyResponse, tokenCount)
 	if err != nil {
 		common.ApiError(c, err)
 		return
