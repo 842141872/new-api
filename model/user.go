@@ -47,7 +47,7 @@ type User struct {
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
-	CreatedAt        time.Time      `json:"created_at"` // GORM standard field, auto-managed
+	CreatedAt        time.Time      `json:"created_at" gorm:"column:created_at;type:datetime(3);default:CURRENT_TIMESTAMP(3)"` // GORM standard field, auto-managed
 }
 
 func (user *User) ToBaseUser() *UserBase {
