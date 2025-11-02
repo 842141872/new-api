@@ -520,6 +520,11 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 }
 
 func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQuota int) {
+	// 临时禁用额度不足邮件提醒功能 - 降低邮件发送成本
+	// 如需恢复，删除下面的 return 语句即可
+	return
+
+	// 以下代码暂时不执行
 	gopool.Go(func() {
 		userSetting := relayInfo.UserSetting
 		threshold := common.QuotaRemindThreshold
