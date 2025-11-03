@@ -137,11 +137,12 @@ func initConstantEnv() {
 	// Error Response Replace Settings
 	ErrorResponseReplaceEnabled = GetEnvOrDefaultBool("ERROR_RESPONSE_REPLACE_ENABLED", false)
 
-	// Parse JSON mapping from environment variable
-	mappingStr := GetEnvOrDefaultString("ERROR_RESPONSE_MAPPING", `{"no candidates returned":"The current model is busy, please try again later","empty response":"Model returned empty content, please check your input","PROHIBITED_CONTENT":"Content violates usage policy, please modify and retry"}`)
+	// Parse JSON mapping from environment variable (for backward compatibility)
+	mappingStr := GetEnvOrDefaultString("ERROR_RESPONSE_MAPPING", "")
 	if mappingStr != "" {
 		ErrorResponseMapping = parseErrorMapping(mappingStr)
 	}
+	// Note: Database loading will be done in main.go after DB initialization
 }
 
 // parseErrorMapping parses JSON string to map[string]string

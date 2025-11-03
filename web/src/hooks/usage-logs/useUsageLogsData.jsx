@@ -241,6 +241,8 @@ export const useLogsData = () => {
       user_id: formValues.user_id || '',
       token_count: formValues.token_count || '',
       logType: formValues.logType ? parseInt(formValues.logType) : 0,
+      username_fuzzy: formValues.username_fuzzy || false,
+      user_id_fuzzy: formValues.user_id_fuzzy || false,
     };
   };
 
@@ -284,11 +286,18 @@ export const useLogsData = () => {
       user_id,
       token_count,
       logType: formLogType,
+      username_fuzzy,
+      user_id_fuzzy,
     } = getFormValues();
     const currentLogType = formLogType !== undefined ? formLogType : logType;
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&empty_response=${empty_response}&user_id=${user_id}&token_count=${token_count}`;
+
+    // 获取 user_id 参数
+    const formValues = formApi ? formApi.getValues() : {};
+    const user_id_param = formValues.user_id || '';
+
+    let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&empty_response=${empty_response}&user_id=${user_id_param}&token_count=${token_count}&username_fuzzy=${username_fuzzy}&user_id_fuzzy=${user_id_fuzzy}`;
     url = encodeURI(url);
     let res = await API.get(url);
     const { success, message, data } = res.data;
@@ -521,6 +530,8 @@ export const useLogsData = () => {
       empty_response,
       token_count,
       logType: formLogType,
+      username_fuzzy,
+      user_id_fuzzy,
     } = getFormValues();
 
     const currentLogType =
@@ -532,8 +543,13 @@ export const useLogsData = () => {
 
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
+
+    // 获取 user_id 参数
+    const formValues = formApi ? formApi.getValues() : {};
+    const user_id_param = formValues.user_id || '';
+
     if (isAdminUser) {
-      url = `/api/log/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&empty_response=${empty_response}&token_count=${token_count}`;
+      url = `/api/log/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&empty_response=${empty_response}&user_id=${user_id_param}&token_count=${token_count}&username_fuzzy=${username_fuzzy}&user_id_fuzzy=${user_id_fuzzy}`;
     } else {
       url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&empty_response=${empty_response}&token_count=${token_count}`;
     }

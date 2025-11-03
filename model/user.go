@@ -37,6 +37,7 @@ type User struct {
 	UsedQuota        int            `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
 	RequestCount     int            `json:"request_count" gorm:"type:int;default:0;"`               // request number
 	Group            string         `json:"group" gorm:"type:varchar(64);default:'default'"`
+	GroupExpiresAt   *time.Time     `json:"group_expires_at,omitempty" gorm:"column:group_expires_at;type:datetime;index"` // 分组过期时间，NULL表示永久
 	AffCode          string         `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	AffCount         int            `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
 	AffQuota         int            `json:"aff_quota" gorm:"type:int;default:0;column:aff_quota"`           // 邀请剩余额度
@@ -47,7 +48,7 @@ type User struct {
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
-	CreatedAt        time.Time      `json:"created_at" gorm:"column:created_at;type:datetime(3);default:CURRENT_TIMESTAMP(3)"` // GORM standard field, auto-managed
+	CreatedAt        time.Time      `json:"created_at" gorm:"column:created_at;type:datetime(3)"` // GORM standard field, auto-managed by application code
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -239,23 +240,18 @@ func SearchUsers(keyword string, group string, startIdx int, num int) ([]*User, 
 	// 构建基础查询
 	query := tx.Unscoped().Model(&User{})
 
-	// 构建搜索条件
-	likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
-
 	// 尝试将关键字转换为整数ID
 	keywordInt, err := strconv.Atoi(keyword)
 	if err == nil {
-		// 如果是数字，同时搜索ID和其他字段
-		likeCondition = "id = ? OR " + likeCondition
+		// 如果是纯数字，只搜索ID字段（精确匹配）
 		if group != "" {
-			query = query.Where("("+likeCondition+") AND "+commonGroupCol+" = ?",
-				keywordInt, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", group)
+			query = query.Where("id = ? AND "+commonGroupCol+" = ?", keywordInt, group)
 		} else {
-			query = query.Where(likeCondition,
-				keywordInt, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			query = query.Where("id = ?", keywordInt)
 		}
 	} else {
-		// 非数字关键字，只搜索字符串字段
+		// 非数字关键字，搜索字符串字段（模糊匹配）
+		likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
 		if group != "" {
 			query = query.Where("("+likeCondition+") AND "+commonGroupCol+" = ?",
 				"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", group)
@@ -448,6 +444,9 @@ func (user *User) Insert(inviterId int) error {
 	//user.SetAccessToken(common.GetUUID())
 	user.AffCode = common.GetRandomString(4)
 
+	// Set registration time for new users
+	user.CreatedAt = time.Now()
+
 	// 初始化用户设置，包括默认的边栏配置
 	if user.Setting == "" {
 		defaultSetting := dto.UserSetting{}
@@ -521,11 +520,12 @@ func (user *User) Edit(updatePassword bool) error {
 
 	newUser := *user
 	updates := map[string]interface{}{
-		"username":     newUser.Username,
-		"display_name": newUser.DisplayName,
-		"group":        newUser.Group,
-		"quota":        newUser.Quota,
-		"remark":       newUser.Remark,
+		"username":         newUser.Username,
+		"display_name":     newUser.DisplayName,
+		"group":            newUser.Group,
+		"group_expires_at": newUser.GroupExpiresAt,
+		"quota":            newUser.Quota,
+		"remark":           newUser.Remark,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password
@@ -979,4 +979,45 @@ func RootUserExists() bool {
 		return false
 	}
 	return true
+}
+
+// ResetExpiredUserGroups resets expired user groups to default
+func ResetExpiredUserGroups() {
+	now := time.Now()
+
+	// 先查询过期用户 ID（在更新之前）
+	var expiredUserIds []int
+	DB.Model(&User{}).
+		Select("id").
+		Where("group_expires_at IS NOT NULL AND group_expires_at <= ?", now).
+		Pluck("id", &expiredUserIds)
+
+	if len(expiredUserIds) == 0 {
+		return // 没有过期用户，直接返回
+	}
+
+	// 批量更新过期用户
+	result := DB.Model(&User{}).
+		Where("id IN ?", expiredUserIds).
+		Updates(map[string]interface{}{
+			"group":            "default",
+			"group_expires_at": nil,
+		})
+
+	if result.Error != nil {
+		common.SysLog("failed to reset expired user groups: " + result.Error.Error())
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("reset %d expired user groups to default", result.RowsAffected))
+
+	// 清理用户缓存（使用原有的 invalidateUserCache 函数）
+	for _, userId := range expiredUserIds {
+		userIdCopy := userId // 避免闭包捕获循环变量
+		gopool.Go(func() {
+			if err := invalidateUserCache(userIdCopy); err != nil {
+				common.SysLog(fmt.Sprintf("failed to invalidate cache for user %d: %s", userIdCopy, err.Error()))
+			}
+		})
+	}
 }

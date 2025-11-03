@@ -53,7 +53,9 @@ func GetAllLogs(c *gin.Context) {
 	userId, _ := strconv.Atoi(c.Query("user_id"))
 	emptyResponse := c.Query("empty_response")
 	tokenCount, _ := strconv.Atoi(c.Query("token_count"))
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channels, group, userId, emptyResponse, tokenCount)
+	usernameFuzzy := c.Query("username_fuzzy") == "true"
+	userIdFuzzy := c.Query("user_id_fuzzy") == "true"
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channels, group, userId, emptyResponse, tokenCount, usernameFuzzy, userIdFuzzy)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -145,7 +147,10 @@ func GetLogsStat(c *gin.Context) {
 	group := c.Query("group")
 	userId, _ := strconv.Atoi(c.Query("user_id"))
 	emptyResponse := c.Query("empty_response")
-	stat := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channels, group, userId, emptyResponse)
+	tokenCount, _ := strconv.Atoi(c.Query("token_count"))
+	usernameFuzzy := c.Query("username_fuzzy") == "true"
+	userIdFuzzy := c.Query("user_id_fuzzy") == "true"
+	stat := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channels, group, userId, emptyResponse, tokenCount, usernameFuzzy, userIdFuzzy)
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, "")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -160,7 +165,7 @@ func GetLogsStat(c *gin.Context) {
 }
 
 func GetLogsSelfStat(c *gin.Context) {
-	username := c.GetString("username")
+	userId := c.GetInt("id")
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
@@ -169,7 +174,10 @@ func GetLogsSelfStat(c *gin.Context) {
 	channels := parseChannelIDs(c.Query("channel"))
 	group := c.Query("group")
 	emptyResponse := c.Query("empty_response")
-	quotaNum := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channels, group, 0, emptyResponse)
+	tokenCount, _ := strconv.Atoi(c.Query("token_count"))
+	usernameFuzzy := c.Query("username_fuzzy") == "true"
+	userIdFuzzy := c.Query("user_id_fuzzy") == "true"
+	quotaNum := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, "", tokenName, channels, group, userId, emptyResponse, tokenCount, usernameFuzzy, userIdFuzzy)
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, tokenName)
 	c.JSON(200, gin.H{
 		"success": true,

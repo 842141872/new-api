@@ -92,6 +92,23 @@ func main() {
 	// 数据看板
 	go model.UpdateQuotaData()
 
+	// 检查并重置过期的用户分组 - 每60秒检查一次
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			model.ResetExpiredUserGroups()
+		}
+	}()
+
+	// 错误响应映射热更新 - 每60秒从数据库同步一次
+	if common.ErrorResponseReplaceEnabled {
+		// 立即加载一次
+		model.RefreshErrorResponseMapping()
+		// 启动定时同步任务
+		go model.SyncErrorResponseMapping(60)
+	}
+
 	if os.Getenv("CHANNEL_UPDATE_FREQUENCY") != "" {
 		frequency, err := strconv.Atoi(os.Getenv("CHANNEL_UPDATE_FREQUENCY"))
 		if err != nil {

@@ -42,6 +42,7 @@ import {
   Col,
   Input,
   InputNumber,
+  DatePicker,
 } from '@douyinfe/semi-ui';
 import {
   IconUser,
@@ -50,6 +51,7 @@ import {
   IconLink,
   IconUserGroup,
   IconPlus,
+  IconClock,
 } from '@douyinfe/semi-icons';
 
 const { Text, Title } = Typography;
@@ -77,6 +79,8 @@ const EditUserModal = (props) => {
     email: '',
     quota: 0,
     group: 'default',
+    group_expires_at: null,
+    group_expires_days: null,
     remark: '',
   });
 
@@ -284,6 +288,61 @@ const EditUserModal = (props) => {
                           rules={[{ required: true, message: t('请选择分组') }]}
                         />
                       </Col>
+
+                      {/* 分组过期时间设置 */}
+                      <Col span={24}>
+                        <div className='mb-2 mt-2 flex items-center'>
+                          <IconClock size={16} className='mr-2 text-gray-500' />
+                          <Text strong>{t('分组过期设置')}</Text>
+                          <Text type='tertiary' className='ml-2 text-xs'>
+                            {t('（可选）过期后自动恢复为 default 分组')}
+                          </Text>
+                        </div>
+                      </Col>
+
+                      <Col span={12}>
+                        <Form.DatePicker
+                          field='group_expires_at'
+                          label={t('截止日期')}
+                          placeholder={t('选择过期日期时间')}
+                          type='dateTime'
+                          format='yyyy-MM-dd HH:mm:ss'
+                          style={{ width: '100%' }}
+                          onChange={(date) => {
+                            if (date) {
+                              formApiRef.current?.setValue('group_expires_days', null);
+                            }
+                          }}
+                        />
+                      </Col>
+
+                      <Col span={12}>
+                        <Form.InputNumber
+                          field='group_expires_days'
+                          label={t('或倒计时（天）')}
+                          placeholder={t('输入天数')}
+                          min={0}
+                          precision={0}
+                          style={{ width: '100%' }}
+                          onChange={(value) => {
+                            if (value) {
+                              formApiRef.current?.setValue('group_expires_at', null);
+                            }
+                          }}
+                        />
+                      </Col>
+
+                      {/* 显示当前过期时间 */}
+                      {values.group_expires_at && (
+                        <Col span={24}>
+                          <div className='p-2 bg-blue-50 rounded text-sm'>
+                            <Text type='secondary'>
+                              {t('当前过期时间：')}
+                              {new Date(values.group_expires_at).toLocaleString('zh-CN')}
+                            </Text>
+                          </div>
+                        </Col>
+                      )}
 
                       <Col span={10}>
                         <Form.InputNumber

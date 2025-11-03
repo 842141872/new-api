@@ -109,14 +109,28 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 			needRecordIp = true
 		}
 	}
+
+	// 从 other 中提取 prompt_tokens，用于上下文超限等错误
+	promptTokens := 0
+	completionTokens := 0
+	if other != nil {
+		if pt, ok := other["prompt_tokens"].(int); ok {
+			promptTokens = pt
+			// 对于上下文超限错误，补全字数设置为输入字数，方便用户查看
+			if errorType, exists := other["error_type"].(string); exists && errorType == "context_limit_exceeded" {
+				completionTokens = pt
+			}
+		}
+	}
+
 	log := &Log{
 		UserId:           userId,
 		Username:         username,
 		CreatedAt:        common.GetTimestamp(),
 		Type:             LogTypeError,
 		Content:          content,
-		PromptTokens:     0,
-		CompletionTokens: 0,
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
 		TokenName:        tokenName,
 		ModelName:        modelName,
 		Quota:            0,
@@ -203,7 +217,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channels []int, group string, userId int, emptyResponse string, tokenCount int) (logs []*Log, total int64, err error) {
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channels []int, group string, userId int, emptyResponse string, tokenCount int, usernameFuzzy bool, userIdFuzzy bool) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -215,16 +229,14 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		tx = tx.Where("logs.model_name like ?", "%"+modelName+"%")
 	}
 	if username != "" {
-		// 支持通过用户名、用户ID或邮箱模糊搜索
-		// 尝试解析为整数ID
-		if userId, err := strconv.Atoi(username); err == nil {
-			// 如果是数字，按用户ID精确匹配
-			tx = tx.Where("logs.user_id = ?", userId)
+		if usernameFuzzy {
+			// 模糊搜索：只搜索 logs.username，避免 JOIN
+			// logs.username 字段有索引，查询速度快
+			tx = tx.Where("logs.username LIKE ?", "%"+username+"%")
 		} else {
-			// 否则，需要关联用户表进行用户名或邮箱的模糊搜索
-			tx = tx.Joins("LEFT JOIN users ON users.id = logs.user_id").
-				Where("logs.username LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
-					"%"+username+"%", "%"+username+"%", "%"+username+"%")
+			// 精确搜索：只搜索 logs.username，避免 JOIN
+			// 使用 = 可以利用索引，比 LIKE 更快
+			tx = tx.Where("logs.username = ?", username)
 		}
 	}
 	if tokenName != "" {
@@ -243,7 +255,13 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
 	}
 	if userId != 0 {
-		tx = tx.Where("logs.user_id = ?", userId)
+		if userIdFuzzy {
+			// 模糊搜索：将userId转为字符串，进行LIKE匹配
+			tx = tx.Where("CAST(logs.user_id AS CHAR) LIKE ?", "%"+strconv.Itoa(userId)+"%")
+		} else {
+			// 精确搜索：直接匹配用户ID
+			tx = tx.Where("logs.user_id = ?", userId)
+		}
 	}
 	// 空回复筛选逻辑
 	if emptyResponse == "empty" {
@@ -421,26 +439,22 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channels []int, group string, userId int, emptyResponse string) (stat Stat) {
+func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channels []int, group string, userId int, emptyResponse string, tokenCount int, usernameFuzzy bool, userIdFuzzy bool) (stat Stat) {
 	tx := LOG_DB.Table("logs").Select("sum(quota) quota")
 
 	// 为rpm和tpm创建单独的查询
 	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, sum(prompt_tokens) + sum(completion_tokens) tpm")
 
+	// 用户名筛选（与 GetAllLogs 保持一致，只搜索 logs.username，避免 JOIN）
 	if username != "" {
-		// 支持通过用户名、用户ID或邮箱模糊搜索
-		if userId, err := strconv.Atoi(username); err == nil {
-			// 如果是数字，按用户ID精确匹配
-			tx = tx.Where("user_id = ?", userId)
-			rpmTpmQuery = rpmTpmQuery.Where("user_id = ?", userId)
+		if usernameFuzzy {
+			// 模糊搜索
+			tx = tx.Where("logs.username LIKE ?", "%"+username+"%")
+			rpmTpmQuery = rpmTpmQuery.Where("logs.username LIKE ?", "%"+username+"%")
 		} else {
-			// 否则，需要关联用户表进行用户名或邮箱的模糊搜索
-			tx = tx.Joins("LEFT JOIN users ON users.id = logs.user_id").
-				Where("logs.username LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
-					"%"+username+"%", "%"+username+"%", "%"+username+"%")
-			rpmTpmQuery = rpmTpmQuery.Joins("LEFT JOIN users ON users.id = logs.user_id").
-				Where("logs.username LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
-					"%"+username+"%", "%"+username+"%", "%"+username+"%")
+			// 精确搜索
+			tx = tx.Where("logs.username = ?", username)
+			rpmTpmQuery = rpmTpmQuery.Where("logs.username = ?", username)
 		}
 	}
 	if tokenName != "" {
@@ -466,8 +480,15 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
 	}
 	if userId != 0 {
-		tx = tx.Where("user_id = ?", userId)
-		rpmTpmQuery = rpmTpmQuery.Where("user_id = ?", userId)
+		if userIdFuzzy {
+			// 模糊搜索：将userId转为字符串，进行LIKE匹配
+			tx = tx.Where("CAST(logs.user_id AS CHAR) LIKE ?", "%"+strconv.Itoa(userId)+"%")
+			rpmTpmQuery = rpmTpmQuery.Where("CAST(logs.user_id AS CHAR) LIKE ?", "%"+strconv.Itoa(userId)+"%")
+		} else {
+			// 精确搜索：直接匹配用户ID
+			tx = tx.Where("logs.user_id = ?", userId)
+			rpmTpmQuery = rpmTpmQuery.Where("logs.user_id = ?", userId)
+		}
 	}
 	if emptyResponse == "empty" {
 		tx = tx.Where("(completion_tokens = 0 OR completion_tokens IS NULL) AND type != ?", LogTypeError)
@@ -476,9 +497,22 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		tx = tx.Where("(completion_tokens > 0 AND completion_tokens IS NOT NULL)")
 		rpmTpmQuery = rpmTpmQuery.Where("(completion_tokens > 0 AND completion_tokens IS NOT NULL)")
 	}
+	// 输入/输出字数筛选（OR关系）
+	if tokenCount > 0 {
+		tx = tx.Where("logs.prompt_tokens = ? OR logs.completion_tokens = ?", tokenCount, tokenCount)
+		rpmTpmQuery = rpmTpmQuery.Where("logs.prompt_tokens = ? OR logs.completion_tokens = ?", tokenCount, tokenCount)
+	}
 
+	// 日志类型筛选
+	// Quota 统计：始终只统计消费类型（LogTypeConsume），因为只有消费类型才有 quota
+	// RPM/TPM 统计：根据用户选择的 logType 参数筛选
 	tx = tx.Where("type = ?", LogTypeConsume)
-	rpmTpmQuery = rpmTpmQuery.Where("type = ?", LogTypeConsume)
+
+	if logType != LogTypeUnknown {
+		// 用户选择了特定类型，RPM/TPM 只统计该类型
+		rpmTpmQuery = rpmTpmQuery.Where("type = ?", logType)
+	}
+	// 如果 logType=0（全部），RPM/TPM 统计所有类型
 
 	// 只统计最近60秒的rpm和tpm
 	rpmTpmQuery = rpmTpmQuery.Where("created_at >= ?", time.Now().Add(-60*time.Second).Unix())

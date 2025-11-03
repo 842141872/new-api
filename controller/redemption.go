@@ -79,10 +79,10 @@ func AddRedemption(c *gin.Context) {
 		})
 		return
 	}
-	if redemption.Count > 1000 {
+	if redemption.Count > 5000 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "一次兑换码批量生成的个数不能大于 1000",
+			"message": "一次兑换码批量生成的个数不能大于 5000",
 		})
 		return
 	}

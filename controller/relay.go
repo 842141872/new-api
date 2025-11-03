@@ -135,6 +135,30 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	// 验证模型上下文限制
 	if err := helper.ValidateContextLimit(relayInfo.OriginModelName, tokens); err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeContextLimitExceeded, types.ErrOptionWithSkipRetry())
+
+		// 记录上下文超限错误日志到数据库（无条件记录）
+		userId := c.GetInt("id")
+		tokenId := c.GetInt("token_id")
+		channelId := c.GetInt("channel_id")
+		tokenName := c.GetString("token_name")
+		modelName := relayInfo.OriginModelName
+		userGroup := c.GetString(string(constant.ContextKeyUsingGroup))
+
+		other := make(map[string]interface{})
+		if c.Request != nil && c.Request.URL != nil {
+			other["request_path"] = c.Request.URL.Path
+		}
+		other["error_type"] = "context_limit_exceeded"
+		other["error_code"] = types.ErrorCodeContextLimitExceeded
+		other["status_code"] = http.StatusBadRequest
+		other["prompt_tokens"] = tokens
+		other["validation_failed"] = true
+		other["error_stage"] = "pre_request_validation"
+
+		// 记录错误日志，使用原始错误信息（包含了token数量和限制信息）
+		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.Error(), tokenId, 0, false, userGroup, other)
+		logger.LogInfo(c, fmt.Sprintf("记录上下文超限错误: 用户=%d, 模型=%s, 输入=%d tokens, 错误=%s", userId, modelName, tokens, err.Error()))
+
 		return
 	}
 

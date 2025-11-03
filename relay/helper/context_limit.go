@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 // extractContextSizeFromModel 从模型名称中提取上下文大小（单位：k）
@@ -56,17 +55,8 @@ func ValidateContextLimit(modelName string, inputTokens int) error {
 		limitWan := float64(contextSizeK) / 10.0
 		inputWan := float64(inputTokens) / 10000.0
 
-		// 格式化"万"的显示
-		formatWan := func(wan float64) string {
-			if wan == float64(int(wan)) {
-				return fmt.Sprintf("%.0f万", wan)
-			}
-			str := fmt.Sprintf("%.1f万", wan)
-			return strings.TrimSuffix(str, ".0万") + "万"
-		}
-
-		return fmt.Errorf("输入%d把（%s），本模型的最大输入是%dk（%s），请换更大的上下文模型呀",
-			inputTokens, formatWan(inputWan), contextSizeK, formatWan(limitWan))
+		return fmt.Errorf("小熊猫温馨提示喔：当前请求的输入字数是%d（约%.1f万），本模型的最大输入是%dk（约%.1f万），输入超字数啦~可以总结隐藏下~也可以换更大的上下文模型，比如：如果当前是100k，就换200k。另外，gemini模型名上没有k的模型，都是满上下文100w字喔，爱你！",
+			inputTokens, inputWan, contextSizeK, limitWan)
 	}
 
 	return nil

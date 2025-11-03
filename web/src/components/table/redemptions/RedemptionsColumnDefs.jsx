@@ -148,7 +148,14 @@ export const getRedemptionsColumns = ({
         return (
           <div>
             {text ? (
-              <Tag color='blue' shape='circle'>
+              <Tag
+                color='blue'
+                shape='circle'
+                style={{ cursor: 'pointer' }}
+                onClick={async () => {
+                  await copyText(text);
+                }}
+              >
                 {text}
               </Tag>
             ) : (

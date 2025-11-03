@@ -131,22 +131,34 @@ const LogsFilters = ({
                 separator={null}
                 addOnBlur={false}
               />
-              <Form.Input
-                field='username'
-                prefix={<IconSearch />}
-                placeholder={t('用户名称')}
-                showClear
-                pure
-                size='small'
-              />
-              <Form.Input
-                field='user_id'
-                prefix={<IconSearch />}
-                placeholder={t('用户 ID')}
-                showClear
-                pure
-                size='small'
-              />
+              <div className='flex items-center gap-2'>
+                <Form.Input
+                  field='username'
+                  prefix={<IconSearch />}
+                  placeholder={t('用户名')}
+                  showClear
+                  pure
+                  size='small'
+                  style={{ flex: 1 }}
+                />
+                <Form.Checkbox field='username_fuzzy' noLabel>
+                  {t('模糊')}
+                </Form.Checkbox>
+              </div>
+              <div className='flex items-center gap-2'>
+                <Form.Input
+                  field='user_id'
+                  prefix={<IconSearch />}
+                  placeholder={t('用户 ID')}
+                  showClear
+                  pure
+                  size='small'
+                  style={{ flex: 1 }}
+                />
+                <Form.Checkbox field='user_id_fuzzy' noLabel>
+                  {t('模糊')}
+                </Form.Checkbox>
+              </div>
             </>
           )}
         </div>

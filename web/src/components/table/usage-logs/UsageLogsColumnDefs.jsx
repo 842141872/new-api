@@ -296,7 +296,7 @@ export const getLogsColumns = ({
             <Avatar
               size='extra-small'
               color={stringToColor(text)}
-              style={{ marginRight: 4 }}
+              style={{ marginRight: 4, cursor: 'pointer' }}
               onClick={(event) => {
                 event.stopPropagation();
                 showUserInfoFunc(record.user_id);
@@ -304,7 +304,14 @@ export const getLogsColumns = ({
             >
               {typeof text === 'string' && text.slice(0, 1)}
             </Avatar>
-            {text}
+            <span
+              style={{ cursor: 'pointer' }}
+              onClick={(event) => {
+                copyText(event, text);
+              }}
+            >
+              {text}
+            </span>
           </div>
         ) : (
           <></>
@@ -523,7 +530,7 @@ export const getLogsColumns = ({
                         <Tag color={colors[useChannel[idx] % colors.length]} shape='circle' size='small'>
                           {useChannel[idx]}
                         </Tag>
-                        <span style={{ marginLeft: 8 }}>{name}</span>
+                        <Typography.Text style={{ marginLeft: 8 }}>{name}</Typography.Text>
                       </div>
                     ))}
                   </div>

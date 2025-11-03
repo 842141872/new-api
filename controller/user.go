@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -337,10 +338,51 @@ func GetUser(c *gin.Context) {
 		})
 		return
 	}
+
+	// 构建返回数据
+	responseData := gin.H{
+		"id":                user.Id,
+		"username":          user.Username,
+		"display_name":      user.DisplayName,
+		"role":              user.Role,
+		"status":            user.Status,
+		"email":             user.Email,
+		"github_id":         user.GitHubId,
+		"oidc_id":           user.OidcId,
+		"wechat_id":         user.WeChatId,
+		"telegram_id":       user.TelegramId,
+		"group":             user.Group,
+		"group_expires_at":  user.GroupExpiresAt,
+		"quota":             user.Quota,
+		"used_quota":        user.UsedQuota,
+		"request_count":     user.RequestCount,
+		"aff_code":          user.AffCode,
+		"aff_count":         user.AffCount,
+		"aff_quota":         user.AffQuota,
+		"aff_history_quota": user.AffHistoryQuota,
+		"inviter_id":        user.InviterId,
+		"linux_do_id":       user.LinuxDOId,
+		"remark":            user.Remark,
+		"stripe_customer":   user.StripeCustomer,
+		"created_at":        user.CreatedAt,
+	}
+
+	// 如果有邀请人，查询邀请人的用户名
+	if user.InviterId > 0 {
+		inviter, err := model.GetUserById(user.InviterId, false)
+		if err == nil {
+			responseData["inviter_username"] = inviter.Username
+		} else {
+			responseData["inviter_username"] = ""
+		}
+	} else {
+		responseData["inviter_username"] = ""
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    user,
+		"data":    responseData,
 	})
 	return
 }
@@ -471,6 +513,7 @@ func GetSelf(c *gin.Context) {
 		"wechat_id":         user.WeChatId,
 		"telegram_id":       user.TelegramId,
 		"group":             user.Group,
+		"group_expires_at":  user.GroupExpiresAt,
 		"quota":             user.Quota,
 		"used_quota":        user.UsedQuota,
 		"request_count":     user.RequestCount,
@@ -612,8 +655,28 @@ func GetUserModels(c *gin.Context) {
 }
 
 func UpdateUser(c *gin.Context) {
+	var requestBody map[string]interface{}
+	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的参数",
+		})
+		return
+	}
+
+	// 先将 map 转换为 JSON，再解析为 User 结构体
+	jsonBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "参数解析失败",
+		})
+		return
+	}
+
 	var updatedUser model.User
-	err := json.NewDecoder(c.Request.Body).Decode(&updatedUser)
+	err = json.Unmarshal(jsonBytes, &updatedUser)
 	if err != nil || updatedUser.Id == 0 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -621,6 +684,39 @@ func UpdateUser(c *gin.Context) {
 		})
 		return
 	}
+
+	// 处理分组过期时间：支持天数（group_expires_days）或具体日期（group_expires_at）
+	if expiryDays, ok := requestBody["group_expires_days"]; ok && expiryDays != nil {
+		if days, ok := expiryDays.(float64); ok && days > 0 {
+			expiryTime := time.Now().Add(time.Duration(days*24) * time.Hour)
+			updatedUser.GroupExpiresAt = &expiryTime
+		}
+	}
+
+	// 处理截止日期：前端 DatePicker 发送 "yyyy-MM-dd HH:mm:ss" 格式字符串
+	if expiryAt, ok := requestBody["group_expires_at"]; ok {
+		if expiryAt == nil || expiryAt == "" {
+			// 如果明确设置为 null 或空字符串，则清除过期时间
+			updatedUser.GroupExpiresAt = nil
+		} else if dateStr, ok := expiryAt.(string); ok && dateStr != "" {
+			// 尝试解析前端发来的日期字符串（支持多种格式）
+			var parsedTime time.Time
+			var parseErr error
+
+			// 格式1: "2006-01-02 15:04:05" (前端 DatePicker 格式)
+			parsedTime, parseErr = time.ParseInLocation("2006-01-02 15:04:05", dateStr, time.Local)
+			if parseErr != nil {
+				// 格式2: RFC3339 "2006-01-02T15:04:05Z07:00" (标准 JSON 格式)
+				parsedTime, parseErr = time.Parse(time.RFC3339, dateStr)
+			}
+
+			if parseErr == nil {
+				updatedUser.GroupExpiresAt = &parsedTime
+			}
+			// 如果解析失败，保持原值（可能是 nil 或之前的值）
+		}
+	}
+
 	if updatedUser.Password == "" {
 		updatedUser.Password = "$I_LOVE_U" // make Validator happy :)
 	}

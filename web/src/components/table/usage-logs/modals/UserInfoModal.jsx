@@ -92,6 +92,22 @@ const UserInfoModal = ({
             )}
           </div>
 
+          {/* 用户ID和邀请人信息 */}
+          <div style={rowStyle}>
+            <div style={colStyle}>
+              {renderLabel(t('用户ID'), 'primary')}
+              <div style={valueStyle}>{userInfoData.id}</div>
+            </div>
+            {userInfoData.inviter_id > 0 && (
+              <div style={colStyle}>
+                {renderLabel(t('邀请人'), 'primary')}
+                <div style={valueStyle}>
+                  {userInfoData.inviter_username} (ID: {userInfoData.inviter_id})
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* 余额信息 */}
           <div style={rowStyle}>
             <div style={colStyle}>

@@ -609,14 +609,6 @@ export const getChannelsColumns = ({
                 </Button>
               )}
 
-              <Button
-                type='tertiary'
-                size='small'
-                onClick={() => navigate(`/log?channel=${record.id}`)}
-              >
-                {t('日志')}
-              </Button>
-
               <Dropdown
                 trigger='click'
                 position='bottomRight'
