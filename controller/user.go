@@ -181,6 +181,28 @@ func Register(c *gin.Context) {
 			})
 			return
 		}
+		// 验证QQ邮箱格式：如果是QQ邮箱，用户名部分必须是纯数字
+		if strings.HasSuffix(strings.ToLower(user.Email), "@qq.com") {
+			emailParts := strings.Split(user.Email, "@")
+			if len(emailParts) == 2 {
+				username := emailParts[0]
+				// 检查用户名是否为纯数字
+				isNumeric := true
+				for _, char := range username {
+					if char < '0' || char > '9' {
+						isNumeric = false
+						break
+					}
+				}
+				if !isNumeric || username == "" {
+					c.JSON(http.StatusOK, gin.H{
+						"success": false,
+						"message": "QQ邮箱仅支持纯数字账号（例如：123456789@qq.com）",
+					})
+					return
+				}
+			}
+		}
 		if !common.VerifyCodeWithKey(user.Email, user.VerificationCode, common.EmailVerificationPurpose) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -291,8 +313,9 @@ func GetAllUsers(c *gin.Context) {
 func SearchUsers(c *gin.Context) {
 	keyword := c.Query("keyword")
 	group := c.Query("group")
+	userIdStr := c.Query("user_id")
 	pageInfo := common.GetPageQuery(c)
-	users, total, err := model.SearchUsers(keyword, group, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	users, total, err := model.SearchUsers(keyword, group, userIdStr, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return

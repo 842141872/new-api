@@ -67,9 +67,8 @@ func InitChannelCache() {
 		}
 	}
 
-	channelSyncLock.Lock()
-	group2model2channels = newGroup2model2channels
-	//channelsIDM = newChannelId2channel
+	// 先处理多key信息（在锁外进行，减少锁持有时间）
+	channelSyncLock.RLock()
 	for i, channel := range newChannelId2channel {
 		if channel.ChannelInfo.IsMultiKey {
 			channel.Keys = channel.GetKeys()
@@ -83,8 +82,14 @@ func InitChannelCache() {
 			}
 		}
 	}
+	channelSyncLock.RUnlock()
+
+	// 原子性更新两个缓存（持有写锁的时间尽可能短）
+	channelSyncLock.Lock()
 	channelsIDM = newChannelId2channel
+	group2model2channels = newGroup2model2channels
 	channelSyncLock.Unlock()
+	ClearGroupModelsCache() // 清除分组模型缓存
 	common.SysLog("channels synced from database")
 }
 
@@ -158,56 +163,48 @@ func getRandomSatisfiedChannel(group string, model string, retry int) (*Channel,
 		return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channels[0])
 	}
 
-	uniquePriorities := make(map[int]bool)
+	// 按优先级分组所有渠道
+	priorityToChannels := make(map[int][]*Channel)
 	for _, channelId := range channels {
 		if channel, ok := channelsIDM[channelId]; ok {
-			uniquePriorities[int(channel.GetPriority())] = true
-		} else {
-			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelId)
-		}
-	}
-	var sortedUniquePriorities []int
-	for priority := range uniquePriorities {
-		sortedUniquePriorities = append(sortedUniquePriorities, priority)
-	}
-	sort.Sort(sort.Reverse(sort.IntSlice(sortedUniquePriorities)))
-
-	if retry >= len(uniquePriorities) {
-		retry = len(uniquePriorities) - 1
-	}
-	targetPriority := int64(sortedUniquePriorities[retry])
-
-	// get the priority for the given retry number
-	var targetChannels []*Channel
-	for _, channelId := range channels {
-		if channel, ok := channelsIDM[channelId]; ok {
-			if channel.GetPriority() == targetPriority {
-				targetChannels = append(targetChannels, channel)
-			}
+			priority := int(channel.GetPriority())
+			priorityToChannels[priority] = append(priorityToChannels[priority], channel)
 		} else {
 			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelId)
 		}
 	}
 
-	// 平滑系数
-	smoothingFactor := 10
-	// Calculate the total weight of all channels up to endIdx
-	totalWeight := 0
-	for _, channel := range targetChannels {
-		totalWeight += channel.GetWeight() + smoothingFactor
+	// 获取排序后的优先级列表
+	var sortedPriorities []int
+	for priority := range priorityToChannels {
+		sortedPriorities = append(sortedPriorities, priority)
 	}
-	// Generate a random value in the range [0, totalWeight)
-	randomWeight := rand.Intn(totalWeight)
+	sort.Sort(sort.Reverse(sort.IntSlice(sortedPriorities)))
 
-	// Find a channel based on its weight
-	for _, channel := range targetChannels {
-		randomWeight -= channel.GetWeight() + smoothingFactor
-		if randomWeight < 0 {
-			return channel, nil
-		}
+	// 构建一个包含所有渠道的列表，按优先级顺序，同优先级内随机打乱
+	var orderedChannels []*Channel
+	for _, priority := range sortedPriorities {
+		channelsInPriority := priorityToChannels[priority]
+		// 随机打乱同优先级内的渠道顺序
+		rand.Shuffle(len(channelsInPriority), func(i, j int) {
+			channelsInPriority[i], channelsInPriority[j] = channelsInPriority[j], channelsInPriority[i]
+		})
+		orderedChannels = append(orderedChannels, channelsInPriority...)
 	}
-	// return null if no channel is not found
-	return nil, errors.New("channel not found")
+
+	// 如果 retry 超出范围，返回最后一个渠道
+	if retry >= len(orderedChannels) {
+		retry = len(orderedChannels) - 1
+	}
+
+	selectedChannel := orderedChannels[retry]
+
+	if common.DebugEnabled {
+		common.SysLog(fmt.Sprintf("[RETRY DEBUG] group=%s, model=%s, retry=%d, total_channels=%d, selected_channel=#%d (priority=%d, name=%s)",
+			group, model, retry, len(orderedChannels), selectedChannel.Id, selectedChannel.GetPriority(), selectedChannel.Name))
+	}
+
+	return selectedChannel, nil
 }
 
 func CacheGetChannel(id int) (*Channel, error) {

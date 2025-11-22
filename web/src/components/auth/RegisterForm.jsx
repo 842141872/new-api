@@ -208,6 +208,20 @@ const RegisterForm = () => {
 
   const sendVerificationCode = async () => {
     if (inputs.email === '') return;
+
+    // 验证QQ邮箱格式：如果是QQ邮箱，用户名部分必须是纯数字
+    if (inputs.email.toLowerCase().endsWith('@qq.com')) {
+      const emailParts = inputs.email.split('@');
+      if (emailParts.length === 2) {
+        const username = emailParts[0];
+        const isNumeric = /^\d+$/.test(username);
+        if (!isNumeric || username === '') {
+          showError('QQ邮箱仅支持纯数字账号（例如：123456789@qq.com）');
+          return;
+        }
+      }
+    }
+
     if (turnstileEnabled && turnstileToken === '') {
       showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
       return;

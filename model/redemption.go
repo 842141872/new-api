@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -172,6 +173,9 @@ func GetRedemptionById(id int) (*Redemption, error) {
 }
 
 func Redeem(key string, userId int) (quota int, err error) {
+	// 去除前后空格、换行符等不可见字符,提高兑换码容错性
+	key = strings.TrimSpace(key)
+
 	if key == "" {
 		return 0, errors.New("未提供兑换码")
 	}

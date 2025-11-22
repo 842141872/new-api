@@ -221,7 +221,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 	return users, total, nil
 }
 
-func SearchUsers(keyword string, group string, startIdx int, num int) ([]*User, int64, error) {
+func SearchUsers(keyword string, group string, userIdStr string, startIdx int, num int) ([]*User, int64, error) {
 	var users []*User
 	var total int64
 	var err error
@@ -240,24 +240,45 @@ func SearchUsers(keyword string, group string, startIdx int, num int) ([]*User, 
 	// 构建基础查询
 	query := tx.Unscoped().Model(&User{})
 
-	// 尝试将关键字转换为整数ID
-	keywordInt, err := strconv.Atoi(keyword)
-	if err == nil {
-		// 如果是纯数字，只搜索ID字段（精确匹配）
-		if group != "" {
-			query = query.Where("id = ? AND "+commonGroupCol+" = ?", keywordInt, group)
+	// 优先处理 user_id 参数（精确 ID 搜索）
+	if userIdStr != "" {
+		userId, err := strconv.Atoi(userIdStr)
+		if err == nil {
+			// 精确ID搜索
+			if group != "" {
+				query = query.Where("id = ? AND "+commonGroupCol+" = ?", userId, group)
+			} else {
+				query = query.Where("id = ?", userId)
+			}
 		} else {
-			query = query.Where("id = ?", keywordInt)
+			// user_id 参数无效，返回空结果
+			tx.Commit()
+			return []*User{}, 0, nil
 		}
 	} else {
-		// 非数字关键字，搜索字符串字段（模糊匹配）
-		likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
-		if group != "" {
-			query = query.Where("("+likeCondition+") AND "+commonGroupCol+" = ?",
-				"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", group)
+		// 没有 user_id 参数，使用 keyword 进行搜索
+		// 尝试将关键字转换为整数ID
+		keywordInt, err := strconv.Atoi(keyword)
+		if err == nil {
+			// 如果是纯数字，同时搜索ID字段（精确匹配）和字符串字段（模糊匹配）
+			likeCondition := "id = ? OR username LIKE ? OR email LIKE ? OR display_name LIKE ?"
+			if group != "" {
+				query = query.Where("("+likeCondition+") AND "+commonGroupCol+" = ?",
+					keywordInt, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", group)
+			} else {
+				query = query.Where(likeCondition,
+					keywordInt, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			}
 		} else {
-			query = query.Where(likeCondition,
-				"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			// 非数字关键字，搜索字符串字段（模糊匹配）
+			likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
+			if group != "" {
+				query = query.Where("("+likeCondition+") AND "+commonGroupCol+" = ?",
+					"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", group)
+			} else {
+				query = query.Where(likeCondition,
+					"%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+			}
 		}
 	}
 
@@ -296,22 +317,14 @@ func SearchUsersByInviter(inviterKeyword string, startIdx int, num int) ([]*User
 	// 尝试将关键字转换为整数ID
 	keywordInt, err := strconv.Atoi(inviterKeyword)
 	if err == nil {
-		// 如果是数字，直接作为ID或者查询用户名/邮箱
+		// 如果是数字，同时查询ID、用户名和邮箱（一次查询）
 		var inviter User
-		err = DB.Unscoped().Where("id = ?", keywordInt).First(&inviter).Error
+		err = DB.Unscoped().Where("id = ? OR username = ? OR email = ?", keywordInt, inviterKeyword, inviterKeyword).First(&inviter).Error
 		if err == nil {
 			inviterId = inviter.Id
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			// 如果不是"未找到"错误，说明是其他数据库错误
 			return nil, 0, err
-		}
-
-		// 如果没找到ID匹配的，尝试用户名或邮箱
-		if inviterId == 0 {
-			err = DB.Unscoped().Where("username = ? OR email = ?", inviterKeyword, inviterKeyword).First(&inviter).Error
-			if err == nil {
-				inviterId = inviter.Id
-			}
 		}
 	} else {
 		// 非数字关键字，查询用户名或邮箱
@@ -319,6 +332,8 @@ func SearchUsersByInviter(inviterKeyword string, startIdx int, num int) ([]*User
 		err = DB.Unscoped().Where("username = ? OR email = ?", inviterKeyword, inviterKeyword).First(&inviter).Error
 		if err == nil {
 			inviterId = inviter.Id
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, err
 		}
 	}
 

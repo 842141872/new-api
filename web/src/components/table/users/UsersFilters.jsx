@@ -61,6 +61,16 @@ const UsersFilters = ({
       className='w-full md:w-auto order-1 md:order-2'
     >
       <div className='flex flex-col md:flex-row items-center gap-2 w-full md:w-auto'>
+        <div className='relative w-full md:w-32'>
+          <Form.Input
+            field='searchUserId'
+            prefix={<IconSearch />}
+            placeholder={t('用户ID')}
+            showClear
+            pure
+            size='small'
+          />
+        </div>
         <div className='relative w-full md:w-64'>
           <Form.Input
             field='searchKeyword'

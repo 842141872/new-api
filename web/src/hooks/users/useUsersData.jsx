@@ -45,6 +45,7 @@ export const useUsersData = () => {
 
   // Form initial values
   const formInitValues = {
+    searchUserId: '',
     searchKeyword: '',
     searchGroup: '',
     searchInviter: '',
@@ -57,6 +58,7 @@ export const useUsersData = () => {
   const getFormValues = () => {
     const formValues = formApi ? formApi.getValues() : {};
     return {
+      searchUserId: formValues.searchUserId || '',
       searchKeyword: formValues.searchKeyword || '',
       searchGroup: formValues.searchGroup || '',
       searchInviter: formValues.searchInviter || '',
@@ -91,13 +93,15 @@ export const useUsersData = () => {
   const searchUsers = async (
     startIdx,
     pageSize,
+    searchUserId = null,
     searchKeyword = null,
     searchGroup = null,
     searchInviter = null,
   ) => {
     // If no parameters passed, get values from form
-    if (searchKeyword === null || searchGroup === null || searchInviter === null) {
+    if (searchUserId === null || searchKeyword === null || searchGroup === null || searchInviter === null) {
       const formValues = getFormValues();
+      searchUserId = formValues.searchUserId;
       searchKeyword = formValues.searchKeyword;
       searchGroup = formValues.searchGroup;
       searchInviter = formValues.searchInviter;
@@ -122,14 +126,14 @@ export const useUsersData = () => {
       return;
     }
 
-    if (searchKeyword === '' && searchGroup === '') {
-      // If keyword is blank, load files instead
+    if (searchUserId === '' && searchKeyword === '' && searchGroup === '') {
+      // If all search fields are blank, load files instead
       await loadUsers(startIdx, pageSize);
       return;
     }
     setSearching(true);
     const res = await API.get(
-      `/api/user/search?keyword=${searchKeyword}&group=${searchGroup}&p=${startIdx}&page_size=${pageSize}`,
+      `/api/user/search?user_id=${searchUserId}&keyword=${searchKeyword}&group=${searchGroup}&p=${startIdx}&page_size=${pageSize}`,
     );
     const { success, message, data } = res.data;
     if (success) {
@@ -214,11 +218,11 @@ export const useUsersData = () => {
   // Handle page change
   const handlePageChange = (page) => {
     setActivePage(page);
-    const { searchKeyword, searchGroup, searchInviter } = getFormValues();
-    if (searchKeyword === '' && searchGroup === '' && searchInviter === '') {
+    const { searchUserId, searchKeyword, searchGroup, searchInviter } = getFormValues();
+    if (searchUserId === '' && searchKeyword === '' && searchGroup === '' && searchInviter === '') {
       loadUsers(page, pageSize).then();
     } else {
-      searchUsers(page, pageSize, searchKeyword, searchGroup, searchInviter).then();
+      searchUsers(page, pageSize, searchUserId, searchKeyword, searchGroup, searchInviter).then();
     }
   };
 
@@ -249,11 +253,11 @@ export const useUsersData = () => {
 
   // Refresh data
   const refresh = async (page = activePage) => {
-    const { searchKeyword, searchGroup, searchInviter } = getFormValues();
-    if (searchKeyword === '' && searchGroup === '' && searchInviter === '') {
+    const { searchUserId, searchKeyword, searchGroup, searchInviter } = getFormValues();
+    if (searchUserId === '' && searchKeyword === '' && searchGroup === '' && searchInviter === '') {
       await loadUsers(page, pageSize);
     } else {
-      await searchUsers(page, pageSize, searchKeyword, searchGroup, searchInviter);
+      await searchUsers(page, pageSize, searchUserId, searchKeyword, searchGroup, searchInviter);
     }
   };
 

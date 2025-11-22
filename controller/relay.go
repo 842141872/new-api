@@ -250,19 +250,14 @@ func addUsedChannel(c *gin.Context, channelId int) {
 }
 
 func getChannel(c *gin.Context, group, originalModel string, retryCount int) (*model.Channel, *types.NewAPIError) {
-	if retryCount == 0 {
-		autoBan := c.GetBool("auto_ban")
-		autoBanInt := 1
-		if !autoBan {
-			autoBanInt = 0
-		}
-		return &model.Channel{
-			Id:      c.GetInt("channel_id"),
-			Type:    c.GetInt("channel_type"),
-			Name:    c.GetString("channel_name"),
-			AutoBan: &autoBanInt,
-		}, nil
+	if common.DebugEnabled {
+		logger.LogInfo(c, fmt.Sprintf("[RETRY DEBUG] getChannel called with retryCount=%d", retryCount))
 	}
+
+	// 每次都重新选择渠道，retryCount 作为索引
+	// retryCount=0: 选择第1个渠道
+	// retryCount=1: 选择第2个渠道
+	// 依此类推，确保同优先级内依次尝试所有渠道
 	channel, selectGroup, err := model.CacheGetRandomSatisfiedChannel(c, group, originalModel, retryCount)
 	if err != nil {
 		return nil, types.NewError(fmt.Errorf("获取分组 %s 下模型 %s 的可用渠道失败（retry）: %s", selectGroup, originalModel, err.Error()), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())

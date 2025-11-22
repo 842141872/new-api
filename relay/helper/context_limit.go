@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // extractContextSizeFromModel 从模型名称中提取上下文大小（单位：k）
@@ -51,7 +52,15 @@ func ValidateContextLimit(modelName string, inputTokens int) error {
 
 	// 检查是否超限
 	if inputTokens > limit {
-		// 计算"万"单位
+		// 判断是否为 Claude 模型
+		isClaudeModel := strings.Contains(strings.ToLower(modelName), "claude")
+
+		if isClaudeModel {
+			// Claude 模型：简洁提示
+			return fmt.Errorf("Claude 模型的最大输入上限是 %dk", contextSizeK)
+		}
+
+		// 其他模型：详细提示
 		limitWan := float64(contextSizeK) / 10.0
 		inputWan := float64(inputTokens) / 10000.0
 

@@ -127,8 +127,8 @@ func main() {
 			controller.UpdateTaskBulk()
 		})
 	}
-	if os.Getenv("BATCH_UPDATE_ENABLED") == "true" {
-		common.BatchUpdateEnabled = true
+	// 批量更新功能：直接检查 BatchUpdateEnabled 配置
+	if common.BatchUpdateEnabled {
 		common.SysLog("batch update enabled with interval " + strconv.Itoa(common.BatchUpdateInterval) + "s")
 		model.InitBatchUpdater()
 	}

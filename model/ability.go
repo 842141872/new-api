@@ -28,6 +28,12 @@ type AbilityWithChannel struct {
 	ChannelType int `json:"channel_type"`
 }
 
+// 缓存：分组 -> 模型列表
+var (
+	groupModelsCache     = make(map[string][]string)
+	groupModelsCacheLock = sync.RWMutex{}
+)
+
 func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 	var abilities []AbilityWithChannel
 	err := DB.Table("abilities").
@@ -39,9 +45,24 @@ func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 }
 
 func GetGroupEnabledModels(group string) []string {
+	// 先尝试从缓存读取
+	groupModelsCacheLock.RLock()
+	cached, ok := groupModelsCache[group]
+	groupModelsCacheLock.RUnlock()
+
+	if ok {
+		return cached
+	}
+
+	// 缓存未命中，查询数据库
 	var models []string
-	// Find distinct models
 	DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
+
+	// 写入缓存
+	groupModelsCacheLock.Lock()
+	groupModelsCache[group] = models
+	groupModelsCacheLock.Unlock()
+
 	return models
 }
 
@@ -50,6 +71,14 @@ func GetEnabledModels() []string {
 	// Find distinct models
 	DB.Table("abilities").Where("enabled = ?", true).Distinct("model").Pluck("model", &models)
 	return models
+}
+
+// ClearGroupModelsCache 清除分组模型缓存
+// 在渠道更新、Ability更新时调用
+func ClearGroupModelsCache() {
+	groupModelsCacheLock.Lock()
+	groupModelsCache = make(map[string][]string)
+	groupModelsCacheLock.Unlock()
 }
 
 func GetAllEnableAbilities() []Ability {
@@ -254,18 +283,32 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 
 	// 如果是新创建的事务，需要提交
 	if isNewTx {
-		return tx.Commit().Error
+		err := tx.Commit().Error
+		if err == nil {
+			ClearGroupModelsCache() // 清除分组模型缓存
+		}
+		return err
 	}
 
+	// 非新事务也要清除缓存（外部会提交）
+	ClearGroupModelsCache()
 	return nil
 }
 
 func UpdateAbilityStatus(channelId int, status bool) error {
-	return DB.Model(&Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error
+	err := DB.Model(&Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error
+	if err == nil {
+		ClearGroupModelsCache() // 清除分组模型缓存
+	}
+	return err
 }
 
 func UpdateAbilityStatusByTag(tag string, status bool) error {
-	return DB.Model(&Ability{}).Where("tag = ?", tag).Select("enabled").Update("enabled", status).Error
+	err := DB.Model(&Ability{}).Where("tag = ?", tag).Select("enabled").Update("enabled", status).Error
+	if err == nil {
+		ClearGroupModelsCache() // 清除分组模型缓存
+	}
+	return err
 }
 
 func UpdateAbilityByTag(tag string, newTag *string, priority *int64, weight *uint) error {
@@ -279,7 +322,11 @@ func UpdateAbilityByTag(tag string, newTag *string, priority *int64, weight *uin
 	if weight != nil {
 		ability.Weight = *weight
 	}
-	return DB.Model(&Ability{}).Where("tag = ?", tag).Updates(ability).Error
+	err := DB.Model(&Ability{}).Where("tag = ?", tag).Updates(ability).Error
+	if err == nil {
+		ClearGroupModelsCache() // 清除分组模型缓存
+	}
+	return err
 }
 
 var fixLock = sync.Mutex{}
@@ -337,5 +384,6 @@ func FixAbility() (int, int, error) {
 		}
 	}
 	InitChannelCache()
+	ClearGroupModelsCache() // 清除分组模型缓存
 	return successCount, failCount, nil
 }

@@ -63,10 +63,16 @@ export function getLogo() {
 }
 
 export function getUserIdFromLocalStorage() {
-  let user = localStorage.getItem('user');
-  if (!user) return -1;
-  user = JSON.parse(user);
-  return user.id;
+  try {
+    let user = localStorage.getItem('user');
+    if (!user) return '-1';
+    user = JSON.parse(user);
+    // 确保返回字符串类型以提高浏览器兼容性
+    return user.id ? String(user.id) : '-1';
+  } catch (error) {
+    console.warn('Failed to get user ID from localStorage:', error);
+    return '-1';
+  }
 }
 
 export function getFooterHTML() {
@@ -127,25 +133,31 @@ export function showError(error) {
   console.error(error);
   if (error.message) {
     if (error.name === 'AxiosError') {
-      switch (error.response.status) {
-        case 401:
-          // 清除用户状态
-          localStorage.removeItem('user');
-          // toast.error('错误：未登录或登录已过期，请重新登录！', showErrorOptions);
-          window.location.href = '/login?expired=true';
-          break;
-        case 429:
-          Toast.error('错误：请求次数过多，请稍后再试！');
-          break;
-        case 500:
-          Toast.error('错误：服务器内部错误，请联系管理员！');
-          break;
-        case 405:
-          Toast.info('本站仅作演示之用，无服务端！');
-          break;
-        default:
-          Toast.error('错误：' + error.message);
+      // 检查 error.response 是否存在,避免空指针异常
+      if (error.response && error.response.status) {
+        switch (error.response.status) {
+          case 401:
+            // 清除用户状态
+            localStorage.removeItem('user');
+            // toast.error('错误：未登录或登录已过期，请重新登录！', showErrorOptions);
+            window.location.href = '/login?expired=true';
+            break;
+          case 429:
+            Toast.error('错误：请求次数过多，请稍后再试！');
+            break;
+          case 500:
+            Toast.error('错误：服务器内部错误，请联系管理员！');
+            break;
+          case 405:
+            Toast.info('本站仅作演示之用，无服务端！');
+            break;
+          default:
+            Toast.error('错误：' + error.message);
+        }
+        return;
       }
+      // 如果没有 response (网络错误等情况)
+      Toast.error('错误：' + (error.message || '网络请求失败'));
       return;
     }
     Toast.error('错误：' + error.message);

@@ -116,7 +116,7 @@ var RequestInterval time.Duration
 
 var SyncFrequency int // unit is second
 
-var BatchUpdateEnabled = false
+var BatchUpdateEnabled = true  // 启用批量更新，解决行锁竞争问题
 var BatchUpdateInterval int
 
 var RelayTimeout int // unit is second

@@ -98,14 +98,22 @@ const TopUp = () => {
   });
 
   const topUp = async () => {
-    if (redemptionCode === '') {
+    // 去除前后空格、换行符等不可见字符
+    const trimmedCode = redemptionCode.trim();
+    if (trimmedCode === '') {
       showInfo(t('请输入兑换码！'));
       return;
     }
+
+    // 防止重复提交
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await API.post('/api/user/topup', {
-        key: redemptionCode,
+        key: trimmedCode,
       });
       const { success, message, data } = res.data;
       if (success) {
